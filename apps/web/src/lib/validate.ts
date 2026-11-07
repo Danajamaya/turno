@@ -40,3 +40,13 @@ export const firstError = (e: z.ZodError) => e.issues[0]?.message ?? "Revisa los
 export const fieldsOf = (f: FormData, keys: string[]) => Object.fromEntries(keys.map((k) => [k, String(f.get(k) ?? "")]));
 export const uuid = z.string().uuid();
 export const localDateSchema = localDate;
+
+export const ReviewInput = z.object({
+  platform: z.enum(["guruwalk", "freetour", "strawberry", "getyourguide", "viator", "civitatis"]),
+  kind: z.enum(["new", "change", "cancel"]).catch("new"),
+  externalRef: z.string().trim().min(3, "Escribe el número de reserva.").max(60),
+  date: localDate, time: localTime,
+  people: z.coerce.number().int().min(1, "Al menos 1 persona.").max(500),
+  tourName: optional(120),
+  travellerName: optional(120),
+});

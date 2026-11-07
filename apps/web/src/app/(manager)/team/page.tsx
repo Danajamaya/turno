@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/session";
 import { listMembers } from "@/lib/store";
 import { AddMemberForm } from "./add-member-form";
 
-export const metadata: Metadata = { title: "Equipo" };
+export const metadata: Metadata = { title: "Guías" };
 const roleName = { owner: "Dueño", manager: "Gerente", employee: "Empleado" } as const;
 
 // S03 team list + S02 add people.
@@ -16,7 +16,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const staff = people.filter((p) => p.role !== "owner");
   return (
     <>
-      <PageHeader title="Equipo">{staff.length > 0 && <ButtonLink href="/schedule" variant="primary">Ir al horario</ButtonLink>}</PageHeader>
+      <PageHeader title="Guías">{staff.length > 0 && <ButtonLink href="/schedule" variant="primary">Ir al horario</ButtonLink>}</PageHeader>
       {nuevo && <div className="mb-6"><Banner tone="success" role="status">¡Listo! {s.company.name} ya está creado. Ahora agrega a tu equipo.</Banner></div>}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
         <Card className="min-w-0">
@@ -33,7 +33,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                     <tr key={p.id} className="border-b border-border last:border-0">
                       <td className="py-3 pr-4 font-semibold">{p.fullName}<span className="block text-xs font-normal text-text-muted">{roleName[p.role]}</span></td>
                       <td className="py-3 pr-4">{p.jobTitle ?? "—"}</td>
-                      <td className="tnum py-3 pr-4">{p.wageCents ? money(p.wageCents) : "—"}</td>
+                      <td className="tnum py-3 pr-4">{p.wageCents ? money(p.wageCents, s.company.currency) : "—"}</td>
                       <td className="hidden max-w-[16rem] truncate py-3 pr-4 text-text-muted md:table-cell">{p.phone ?? p.email}</td>
                       <td className="py-3">{p.status === "invited" ? <Badge tone="invited">Invitado</Badge> : <Badge tone="approved">Activo</Badge>}</td>
                     </tr>
@@ -45,7 +45,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </Card>
         <Card>
           <h2 className="mb-4 text-lg">Agregar persona</h2>
-          <AddMemberForm />
+          <AddMemberForm currency={s.company.currency} />
         </Card>
       </div>
     </>

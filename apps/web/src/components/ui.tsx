@@ -61,6 +61,21 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <section className={`rounded-lg border border-border bg-surface-raised p-6 shadow-card ${className}`}>{children}</section>;
 }
 
+/** Metric card with a coloured top edge, like the owner's CRMs. `edge` is a token class, e.g. "border-t-ch-viator"; `icon` sits in a tinted chip of the same colour. */
+export function Kpi({ label, value, note, edge = "border-t-accent", trend, icon }: { label: string; value: string; note?: string; edge?: string; trend?: { text: string; up: boolean }; icon?: ReactNode }) {
+  const colour = edge.replace("border-t-", "");
+  return (
+    <div className={`rounded-lg border border-t-4 border-border bg-surface-raised p-5 shadow-card ${edge}`}>
+      <p className="flex items-center justify-between gap-2 text-sm font-semibold text-text-muted">{label}
+        {icon && <span className="grid h-8 w-8 place-items-center rounded-md" style={{ background: `color-mix(in srgb, var(--color-${colour}) 16%, transparent)`, color: `color-mix(in srgb, var(--color-${colour}) 70%, var(--color-text))` }}>{icon}</span>}
+      </p>
+      <p className="tnum my-1 font-serif text-xl">{value}</p>
+      {trend ? <p className="text-sm text-text-muted"><span className={`font-semibold ${trend.up ? "text-success" : "text-danger"}`}>{trend.up ? "▲" : "▼"} {trend.text}</span> vs. mismos días del mes pasado</p>
+        : note ? <p className="text-sm text-text-muted">{note}</p> : null}
+    </div>
+  );
+}
+
 export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-start gap-2 py-6">
@@ -74,7 +89,7 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-3">
-      <h1 className="mr-auto text-xl">{title}</h1>
+      <h1 className="mr-auto font-serif text-xl">{title}</h1>
       {children}
     </div>
   );

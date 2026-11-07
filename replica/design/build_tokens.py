@@ -40,6 +40,8 @@ def css(t):
             lines.append("  --layout-%s: %dpx;" % (name, value))
     lines.append("  --font-sans: %s;" % t["font"]["sans"])
     lines.append("  --font-mono: %s;" % t["font"]["mono"])
+    if "serif" in t["font"]:
+        lines.append("  --font-serif: %s;" % t["font"]["serif"])
     lines.append("}")
     return "\n".join(lines) + "\n"
 
@@ -54,7 +56,7 @@ def tailwind(t):
     preset = {
         "theme": {
             "colors": dict(colors, transparent="transparent", current="currentColor"),
-            "fontFamily": {"sans": ["var(--font-sans)"], "mono": ["var(--font-mono)"]},
+            "fontFamily": {"sans": ["var(--font-sans)"], "mono": ["var(--font-mono)"], "serif": ["var(--font-serif)"]},
             "fontSize": font_size,
             "borderRadius": dict({name: "var(--radius-%s)" % name for name in t["radius"]}, none="0"),
             "boxShadow": dict({name: "var(--shadow-%s)" % name for name in t["shadow"]}, none="none"),

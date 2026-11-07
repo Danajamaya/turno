@@ -38,6 +38,34 @@ to a hosted service yet: that needs the owner's accounts and keys.
 4. **Twilio** (later, for SMS invites and codes): US numbers need 10DLC brand
    and campaign registration, which takes days to weeks. Start it early.
 
+5. **Turno Guías extras** (all optional; each feature degrades gracefully without its key):
+   - `LINK_SECRET`: any long random string; signs the tip QR links. Without it in
+     production the QR is hidden.
+   - Card tips and gift cards use the same Stripe account (Checkout, one-off
+     payments). Also add `invoice.paid` to the webhook events if not already there.
+     Money lands in Turno's Stripe account; paying guides directly needs
+     **Stripe Connect** (Express accounts), which is the next step.
+   - `CRON_SECRET` and a weekly scheduler (e.g. Vercel cron, Mondays 08:00) calling
+     `GET /api/cron/weekly` with `Authorization: Bearer $CRON_SECRET`.
+   - Push to phones: `npx web-push generate-vapid-keys`, then `VAPID_PUBLIC_KEY`,
+     `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:you@your-domain`.
+   - **Stripe Connect** (Settings > Connect in Stripe): turn on Express accounts, then
+     add `account.updated` to the webhook events. Guides connect from Configuración.
+   - The hourly scheduler: `GET /api/cron/hourly` (same `CRON_SECRET`) releases
+     places held by unpaid deposits.
+   - OCTO: give each reseller (GetYourGuide, Viator) the API base `https://<domain>/api/octo`
+     and a key created in Plataformas; they certify the integration on their side.
+   - `ANTHROPIC_API_KEY` (optional) for reply suggestions and tour drafts written
+     by Claude; without it, both are built from the business's own data.
+   - **WhatsApp Business** (Meta for Developers): create an app with the WhatsApp
+     product, add the business number, and set `WHATSAPP_TOKEN` (a permanent
+     system-user token), `WHATSAPP_APP_SECRET` (App settings > Basic) and
+     `WHATSAPP_VERIFY_TOKEN` (any string you choose). Configure the webhook URL
+     `https://<domain>/api/whatsapp` with that verify token and subscribe to
+     `messages`. Each business enters its Phone number ID in Configuración.
+   - Optional travel insurance is only a price added to the booking; selling real
+     policies needs an agreement with an insurer.
+
 All variables are listed in `.env.example`.
 
 ## Checklist

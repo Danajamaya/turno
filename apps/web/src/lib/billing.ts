@@ -4,6 +4,9 @@ import "server-only";
 import Stripe from "stripe";
 import { system } from "./db";
 import { appUrl } from "./email";
+import { activateGiftCard } from "./gifts";
+import { markTipPaid } from "./tips";
+import { markConnectState, markDepositPaid, saveCardOnFile } from "./money";
 import type { Session, Subscription } from "./types";
 import { RuleError } from "./types";
 
@@ -73,6 +76,10 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
     switch (event.type) {
       case "checkout.session.completed": {
         const cs = event.data.object as Stripe.Checkout.Session;
+        if (cs.metadata?.kind === "tip" && cs.payment_status === "paid") { await markTipPaid(cs.metadata.tip_id, cs.id, tx); break; }
+        if (cs.metadata?.kind === "gift" && cs.payment_status === "paid") { await activateGiftCard(cs.metadata.gift_id, cs.id, tx); break; }
+        if (cs.metadata?.kind === "deposit" && cs.payment_status === "paid") { await markDepositPaid(tx, cs.metadata.booking_id); break; }
+        if (cs.metadata?.kind === "card_on_file" && typeof cs.setup_intent === "string") { await saveCardOnFile(tx, cs.metadata.booking_id, cs.setup_intent); break; }
         if (cs.client_reference_id && typeof cs.customer === "string") {
           await tx`update companies set stripe_customer_id = ${cs.customer} where id = ${cs.client_reference_id}`;
         }
@@ -94,6 +101,21 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
           on conflict (company_id) do update set
             stripe_subscription_id = excluded.stripe_subscription_id, plan = excluded.plan, status = excluded.status,
             location_quantity = excluded.location_quantity, current_period_end = excluded.current_period_end`;
+        break;
+      }
+      case "invoice.paid": {
+        // Turno's subscription revenue, for the platform earnings page.
+        const inv = event.data.object as Stripe.Invoice;
+        if (typeof inv.customer === "string" && inv.amount_paid > 0) {
+          await tx`insert into platform_ledger (company_id, kind, amount_cents, currency, stripe_ref, occurred_at)
+                   values ((select id from companies where stripe_customer_id = ${inv.customer}), 'subscription',
+                           ${inv.amount_paid}, ${inv.currency.toUpperCase()}, ${inv.id}, to_timestamp(${inv.created}))
+                   on conflict (stripe_ref) do nothing`;
+        }
+        break;
+      }
+      case "account.updated": {
+        await markConnectState(tx, event.data.object as Stripe.Account);
         break;
       }
       case "invoice.payment_failed": {

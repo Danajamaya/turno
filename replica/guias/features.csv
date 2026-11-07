@@ -1,0 +1,73 @@
+feature,area,priority,original,clone,notes
+One calendar with bookings from every channel,channels,must,partial,partial,weekly agenda by day; month view and Google/Apple calendar feed next
+Email forwarding address per guide,channels,must,yes,yes,webhook with shared secret; sender authentication required
+Connect Gmail in one click (read only booking emails),channels,must,no,no,needs Google OAuth verification (CASA) before public launch
+Parse GuruWalk booking/change/cancel emails,channels,must,yes,partial,generic es/en reader; exact rules need real sample emails
+Parse Freetour.com emails,channels,must,yes,partial,generic reader; needs real samples
+Parse Strawberry Tours emails,channels,must,unknown,partial,generic reader; needs real samples
+Parse GetYourGuide / Viator / Civitatis emails,channels,must,yes,partial,generic reader; needs real samples
+AI extraction for unknown email formats with review queue,channels,must,no,partial,review queue done; AI step not yet (needs an Anthropic key)
+Idempotent import (no duplicates; cancellations remove),channels,must,yes,yes,Message-ID and platform ref; early cancellations held and applied
+iCal feed import,channels,should,unknown,no,
+OCTO / GetYourGuide / Viator supplier API,channels,should,yes,no,requires connectivity partner certification
+Browser extension (guide's own session),channels,could,no,no,optional; never server-side passwords
+Group list per tour with check-in,operations,must,yes,yes,"guide app: check in per booking, close with tips split by people"
+Assign guides to tour slots (operators),operations,should,yes,yes,"per tour (all platforms at that time), guide sees only theirs"
+Travellers CRM with history across channels,crm,must,partial,yes,"one contact per email/phone across channels; bookings, messages, review per traveller"
+WhatsApp and email messages with preview,crm,must,partial,partial,"preview, email sent by Turno, WhatsApp opens the guide's own app (wa.me); WhatsApp Business API next"
+Automatic reminders and review requests queue,crm,must,yes,yes,"daily queue: reminder the day before, review request the day after, in the traveller's language; approve or skip"
+Public guide profile (video languages specialities reviews),marketplace,must,no,partial,"profile, video, languages, specialities and verified reviews"
+Search guides by city date language interest,marketplace,must,no,partial,"city (accents ignored), language, speciality; date filter next"
+Book and pay on Turno (Stripe Connect payouts),marketplace,must,no,partial,booking with price and commission; pay on site until Stripe Connect
+Free tour reservation without payment,marketplace,must,no,yes,
+Trial / short tour,marketplace,could,no,yes,any package can be a short trial tour
+Verified reviews only from real bookings,marketplace,must,no,yes,"private link per booking, one review each, shown on the public profile"
+Spanish and English interface,platform,must,yes,partial,"public pages (search, profile, booking, review) in es/en; guide CRM in Spanish"
+Free plan with higher commission and paid plan with lower commission,billing,must,no,yes,"Gratis 18 %, Pro 7 %, Agencia 5 % (placeholders)"
+Earnings per tour and channel,finance,should,yes,partial,per channel per month with platform fees and tips; per tour next
+Guide commissions for operators,finance,should,yes,no,Viamki feature
+Logging into platforms with stored guide passwords,channels,could,no,skip,against platform terms; risk to guides' accounts; liability
+Platform earnings for Turno (subscriptions and commissions),finance,must,n/a,partial,admin page + ledger from Stripe invoices; commissions arrive with marketplace sales
+Customer to sale to booking flow with time and price,marketplace,must,n/a,yes,public page → departure → booking with price → calendar → income
+"Team chat (Equipo): channels, direct messages, tour cards",team,must,n/a,partial,owner's ask; polling every 4 s; push notifications and files next
+"Calendar sync (Google, Apple, Outlook)",channels,must,n/a,yes,"private .ics per person; managers all tours, guides their own; revocable"
+Waitlist for full departures with notice when places free up,marketplace,should,n/a,yes,"first person whose group fits is emailed after any cancellation, from any platform"
+Overbooking alert across platforms,channels,must,n/a,yes,"Inicio warning, email to managers, stop selling the departure on Turno"
+Card tips by QR at the end of the tour,finance,should,n/a,partial,"QR and link in the guide app, added to the tour's tips; payment needs Stripe keys (Connect for direct payouts)"
+Photos for profile and tours,marketplace,must,n/a,yes,"resized in the browser, checked by content type; illustrated cover until uploaded"
+Traveller questions before booking with suggested replies,crm,should,n/a,yes,"private email thread; suggestions from tour data, or Claude with an Anthropic key"
+Gift cards,marketplace,should,n/a,partial,"sold from the public page, redeemed at booking; payment needs Stripe keys, or mark as paid in person"
+Demand-based price and timetable ideas,finance,should,n/a,yes,"last 8 weeks per weekly slot: raise price, add departure, launch price or drop slot"
+Suggested guide assignment and monthly guide pay,operations,should,yes,yes,"free and speaks the group's language, evenly spread; per tour + per person + tip share, CSV export"
+Weekly summary email,crm,should,n/a,yes,"Mondays via /api/cron/weekly; on by default, switch off in settings"
+Installable app with offline group list and push,platform,should,n/a,partial,"manifest, icons, service worker; push needs VAPID keys; native store apps later"
+Direct payouts to the guide (Stripe Connect) and receipts,finance,must,n/a,partial,"Express onboarding, destination charges with Turno's fee, simplified invoice per booking; needs Stripe keys"
+Optional deposit at booking,finance,should,n/a,partial,"per person per tour; unpaid after 2 h releases the places (hourly cron); needs Stripe keys"
+No-show fee for free tours,finance,should,yes,partial,"card saved at booking, charged once when the guide marks no-show; needs Stripe keys"
+Fiscal data and DAC7 report,finance,must,n/a,yes,"NIF and address in settings, yearly CSV by quarter for platform admins"
+Yearly income report for the tax return,finance,should,n/a,yes,"by quarter and platform, CSV for the gestor"
+Group and school quotes,marketplace,should,n/a,yes,"public form; arrives in Mensajes as a quote with group size, date and kind"
+Discount codes and hotel partners,marketplace,should,n/a,yes,"percent or amount, limits, expiry, partner commission report"
+City pages for search engines,marketplace,should,n/a,yes,"/tours/<city>, structured data on profiles, sitemap.xml and robots.txt"
+Booking widget for the guide's website,marketplace,should,n/a,yes,"iframe snippet in Perfil; booking opens the full page"
+Google review request after a good review,crm,should,n/a,yes,"link shown to travellers who give 4 or 5 stars"
+Route stops with map and live group location,operations,should,n/a,yes,"stops with map links; guide shares position; signed latecomers' link in the reminder"
+Weather and rain alert,operations,should,n/a,yes,"Open-Meteo, no key; warning on Inicio for tours in the next 36 h"
+Notes and children per booking,operations,should,yes,yes,"shown in the group list, editable by the tour's guide or a manager"
+Tour swaps between guides,operations,should,n/a,yes,"request posted in #cambios-de-turno; another guide takes it if free"
+Equipment checklist per tour,operations,could,n/a,yes,"items per tour, checked per departure"
+OCTO supplier API for GetYourGuide and Viator,channels,should,yes,partial,"products, availability, holds, confirm, cancel with a key per reseller; certification by each reseller still needed"
+Import past bookings from CSV,channels,should,yes,yes,"Spanish or ISO dates, platform names, idempotent on reference"
+Platform comparison,finance,should,n/a,yes,"net per person with tips, fee %, no-show and cancellation rates, rating"
+Guide verification badge,marketplace,should,n/a,yes,"private documents reviewed by Turno, deleted after the decision"
+Referral program,billing,should,n/a,yes,"half commission for a month for the invited guide, and for the inviter when they publish"
+Seasonal prices,pricing,should,n/a,yes,"percent up or down by date range, per tour or all tours; rounded to 50 cents"
+Combo packages,marketplace,should,n/a,yes,"what a tour includes (tickets, tapas, transport) shown as chips"
+Review photos,marketplace,should,n/a,yes,"up to 3 images per review, checked by file signature"
+WhatsApp auto-replies,channels,should,n/a,partial,"Cloud API webhook files messages in Mensajes and answers frequent questions; needs a Meta app and number"
+Loyalty discount,pricing,could,n/a,yes,"percent off for travellers who attended before, matched by email, not stacked with codes"
+Guide training,operations,should,n/a,yes,"script per tour in the guide app; tours that require training are only suggested to trained guides"
+Optional insurance per tour,marketplace,could,n/a,partial,"price per person added at booking; real policies need an insurance partner"
+AI tour creator,marketplace,should,n/a,yes,"draft from one sentence with Claude, or from rules and similar tours' prices without a key"
+Multi-city agency panel,operations,should,n/a,yes,"cities as locations with their own time zone, results per city; more than one city needs the Agencia plan"
+Sustainable tourism seal,marketplace,could,n/a,yes,"self-declared local shops and groups of 15 or fewer; badge and search filter"

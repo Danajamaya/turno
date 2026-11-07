@@ -98,7 +98,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                 <th scope="col" className="sticky left-0 z-[1] w-48 border-b border-r border-border bg-surface p-2 font-semibold">Persona</th>
                 {days.map((d, i) => (
                   <th key={d} scope="col" className={`border-b border-r border-border p-2 font-semibold ${d === today ? "text-accent" : ""}`}>
-                    {dayLabel(d)}<span className="tnum block font-normal">{hours(perDay[i].minutes)} h · {money(perDay[i].cost)}</span>
+                    {dayLabel(d)}<span className="tnum block font-normal">{hours(perDay[i].minutes)} h · {money(perDay[i].cost, s.company.currency)}</span>
                   </th>
                 ))}
               </tr>
@@ -144,7 +144,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
             <tfoot>
               <tr className="bg-surface text-xs text-text-muted">
                 <th scope="row" className="sticky left-0 z-[1] bg-surface p-2 font-semibold">Costo laboral</th>
-                <td colSpan={7} className="tnum p-2">{hours(totalMinutes)} horas programadas · {money(totalCost)} proyectado (incluye horas extra)</td>
+                <td colSpan={7} className="tnum p-2">{hours(totalMinutes)} horas programadas · {money(totalCost, s.company.currency)} proyectado (incluye horas extra)</td>
               </tr>
             </tfoot>
           </table>

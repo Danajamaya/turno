@@ -9,8 +9,15 @@ import { checkoutUrl, portalUrl, type PaidPlan } from "@/lib/billing";
 import { clientIp, limited } from "@/lib/limit";
 import { requireSession, signOut, startSession } from "@/lib/session";
 import * as db from "@/lib/store";
+import * as guides from "@/lib/guides";
+import * as guideApp from "@/lib/guide-app";
+import * as feeds from "@/lib/feeds";
+import * as marketplace from "@/lib/marketplace";
+import * as crm from "@/lib/crm";
+import { paymentStepFor } from "@/lib/money";
+import { applyReferral } from "@/lib/trust";
 import { RuleError } from "@/lib/types";
-import { fieldsOf, firstError, localDateSchema, LoginInput, MemberInput, ShiftInput, SignupInput, uuid } from "@/lib/validate";
+import { fieldsOf, firstError, localDateSchema, LoginInput, MemberInput, ReviewInput, ShiftInput, SignupInput, uuid } from "@/lib/validate";
 
 export type FormState = { error?: string; ok?: string; fields?: Record<string, string> };
 
@@ -27,7 +34,9 @@ export async function signupAction(_: FormState, f: FormData): Promise<FormState
   if (!input.success) return { error: firstError(input.error), fields };
   let userId: string;
   try {
-    ({ userId } = await db.createCompany(input.data));
+    let company: { id: string };
+    ({ userId, company } = await db.createCompany(input.data));
+    await applyReferral(company.id, String(f.get("ref") ?? "") || null);
   } catch (e) { return fail(e, fields); }
   await startSession(userId);
   redirect("/team?nuevo=1");
@@ -164,4 +173,168 @@ export async function devSignInAction(f: FormData) {
 export async function signOutAction() {
   await signOut();
   redirect("/login");
+}
+
+// ------------------------------------------------------------- guides
+
+export async function closeBookingAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const id = uuid.parse(f.get("bookingId"));
+  const tips = Math.max(0, Math.round(Number(String(f.get("tips") ?? "0").replace(",", ".")) * 100) || 0);
+  await guides.closeBooking(s, id, { attended: f.get("attended") !== "no", tipsCents: Math.min(tips, 10_000_00) });
+  revalidatePath("/calendario");
+  revalidatePath("/ingresos");
+}
+
+export async function setFeeAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const platform = String(f.get("platform"));
+  if (!(guides.PLATFORMS as readonly string[]).includes(platform)) return;
+  const fee = Math.max(0, Math.round(Number(String(f.get("fee") ?? "0").replace(",", ".")) * 100) || 0);
+  await guides.setChannelFee(s, platform, Math.min(fee, 100_00));
+  revalidatePath("/canales");
+}
+
+export async function resolveReviewAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner", "manager"]);
+  const id = uuid.parse(f.get("emailId"));
+  if (f.get("ignore")) {
+    await guides.resolveReview(s, id, "ignore");
+    revalidatePath("/canales");
+    // the reviewed card disappears, so the confirmation lives on the page
+    redirect("/canales?revisado=descartado");
+  }
+  const v = ReviewInput.safeParse(fieldsOf(f, ["platform", "kind", "externalRef", "date", "time", "people", "tourName", "travellerName"]));
+  if (!v.success) return { error: firstError(v.error) };
+  try { await guides.resolveReview(s, id, v.data); } catch (e) { return fail(e); }
+  revalidatePath("/canales");
+  revalidatePath("/calendario");
+  redirect("/canales?revisado=agregada");
+}
+
+// ------------------------------------------------------------- guide app
+
+export async function assignGuideAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const member = String(f.get("memberId") ?? "");
+  await guideApp.assignGuide(s, String(f.get("key") ?? ""), member ? uuid.parse(member) : null);
+  revalidatePath("/calendario");
+}
+
+export async function checkInAction(f: FormData) {
+  const s = await requireSession();
+  await guideApp.checkIn(s, uuid.parse(f.get("bookingId")), f.get("present") === "1");
+  revalidatePath("/clock/tour");
+}
+
+export async function closeTourAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession();
+  const tips = Math.round(Number(String(f.get("tips") ?? "0").replace(",", ".")) * 100);
+  if (!Number.isFinite(tips) || tips < 0) return { error: "Revisa el importe de las propinas." };
+  try { await guideApp.closeTour(s, String(f.get("key") ?? ""), tips); } catch (e) { return fail(e); }
+  revalidatePath("/clock/tour");
+  return { ok: "Tour cerrado. ¡Buen trabajo!" };
+}
+
+export async function calendarFeedAction(): Promise<FormState> {
+  const s = await requireSession();
+  return { ok: await feeds.regenerateFeed(s) };
+}
+
+// ------------------------------------------------------------- profile, tours, marketplace
+
+const list = (v: FormDataEntryValue | null) => String(v ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 12);
+
+export async function saveProfileAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner", "manager"]);
+  const str = (k: string, max: number) => String(f.get(k) ?? "").trim().slice(0, max);
+  const video = str("videoUrl", 300);
+  if (video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be|vimeo\.com)\//.test(video)) return { error: "El video tiene que ser un enlace de YouTube o Vimeo." };
+  try {
+    await marketplace.saveProfile(s, { slug: str("slug", 41).toLowerCase(), headline: str("headline", 120), bio: str("bio", 2000), city: str("city", 80),
+      languages: list(f.get("languages")), specialities: list(f.get("specialities")), videoUrl: video || null, published: f.get("published") === "on",
+      sustainableLocal: f.get("sustainableLocal") === "on", sustainableNoPlastic: f.get("sustainableNoPlastic") === "on", sustainablePublicTransport: f.get("sustainablePublicTransport") === "on" });
+  } catch (e) { return fail(e); }
+  revalidatePath("/perfil");
+  return { ok: "Perfil guardado." };
+}
+
+export async function saveTourAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner", "manager"]);
+  const n = (k: string, d: number) => { const v = Number(String(f.get(k) ?? "").replace(",", ".")); return Number.isFinite(v) ? v : d; };
+  const title = String(f.get("title") ?? "").trim().slice(0, 120);
+  if (!title) return { error: "Escribe el nombre del tour." };
+  const model = String(f.get("priceModel"));
+  const slots = [0, 1, 2, 3, 4, 5, 6].flatMap((d) => String(f.get(`slot-${d}`) ?? "").split(",").map((t) => t.trim()).filter((t) => /^\d{1,2}:\d{2}$/.test(t)).map((t) => ({ weekday: d, time: t.padStart(5, "0") })));
+  try {
+    await marketplace.saveTour(s, {
+      id: f.get("id") ? uuid.parse(f.get("id")) : undefined, title,
+      description: String(f.get("description") ?? "").trim().slice(0, 1000) || null, meetingPoint: String(f.get("meetingPoint") ?? "").trim().slice(0, 200) || null,
+      durationMin: Math.min(1440, Math.max(15, Math.round(n("durationMin", 120)))), capacity: Math.min(500, Math.max(1, Math.round(n("capacity", 20)))),
+      priceModel: (["free_tip", "per_person", "per_group"].includes(model) ? model : "free_tip") as "free_tip", priceCents: Math.max(0, Math.round(n("price", 0) * 100)),
+      published: f.get("published") === "on", maxPeoplePerBooking: Math.min(500, Math.max(1, Math.round(n("maxPeople", 10)))), weeklySlots: slots,
+      depositCents: Math.max(0, Math.round(n("deposit", 0) * 100)), noShowFeeCents: Math.max(0, Math.round(n("noShowFee", 0) * 100)),
+      // stops, one per line: "Plaza Mayor | 40.4155, -3.7074" (coordinates optional)
+      stops: String(f.get("stops") ?? "").split("\n").map((line) => { const [name, coords = ""] = line.split("|"); const [lat, lng] = coords.split(",").map((x) => Number(x.trim()));
+        return { name: name.trim(), lat: coords.trim() && Number.isFinite(lat) ? lat : null, lng: coords.trim() && Number.isFinite(lng) ? lng : null }; }).filter((x) => x.name),
+      equipment: String(f.get("equipment") ?? "").split(","),
+      includes: String(f.get("includes") ?? "").split(","), script: String(f.get("script") ?? ""), requiresTraining: f.get("requiresTraining") === "on",
+      insuranceCents: Math.max(0, Math.round(n("insurance", 0) * 100)), locationId: f.get("locationId") ? uuid.parse(f.get("locationId")) : undefined,
+    });
+  } catch (e) { return fail(e); }
+  revalidatePath("/perfil");
+  redirect("/perfil?guardado=1");
+}
+
+export async function deleteTourAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await marketplace.deleteTour(s, uuid.parse(f.get("id")));
+  revalidatePath("/perfil");
+}
+
+export async function bookAction(_: FormState, f: FormData): Promise<FormState> {
+  const fields = fieldsOf(f, ["slug", "tourId", "startsAt", "people", "name", "email", "phone", "gift", "discount"]);
+  if (limited(`book:${await clientIp()}`, 10, 60 * 60_000)) return { error: TOO_MANY, fields };
+  const email = LoginInput.safeParse({ email: fields.email });
+  if (!fields.name.trim()) return { error: "Escribe tu nombre.", fields };
+  if (!email.success) return { error: "Escribe un correo válido para mandarte la confirmación.", fields };
+  let code: string, bookingId: string;
+  try {
+    ({ code, bookingId } = await marketplace.book({ slug: fields.slug, tourId: uuid.parse(fields.tourId), startsAt: fields.startsAt, people: Math.round(Number(fields.people) || 0),
+      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es", giftCode: fields.gift || null, discountCode: fields.discount || null, insurance: f.get("insurance") === "on" }));
+  } catch (e) { return fail(e, fields); }
+  const step = await paymentStepFor(bookingId, fields.slug, f.get("lang") === "en" ? "en" : "es").catch(() => null);
+  if (step) redirect(step.url);
+  redirect(`/g/${fields.slug}/reserva/${code}?lang=${f.get("lang") === "en" ? "en" : "es"}`);
+}
+
+// ------------------------------------------------------------- CRM, messages, reviews
+
+export async function submitReviewAction(_: FormState, f: FormData): Promise<FormState> {
+  if (limited(`review:${await clientIp()}`, 20, 60 * 60_000)) return { error: TOO_MANY };
+  const token = String(f.get("token") ?? "");
+  const photos = await Promise.all(f.getAll("photo").filter((x): x is File => x instanceof File && x.size > 0).slice(0, 3).map(async (x) => new Uint8Array(await x.arrayBuffer())));
+  try { await crm.submitReview(token, Number(f.get("rating")), String(f.get("body") ?? ""), String(f.get("author") ?? ""), photos); } catch (e) { return fail(e); }
+  redirect(`/resena/${token}?ok=1&lang=${f.get("lang") === "en" ? "en" : "es"}`);
+}
+
+export async function whatsappSendAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const id = uuid.parse(f.get("id")), body = String(f.get("body") ?? "").trim().slice(0, 2000), phone = String(f.get("phone") ?? "");
+  await crm.markSent(s, id, "whatsapp", body);
+  revalidatePath("/mensajes");
+  redirect(crm.whatsappLink(phone, body));
+}
+
+export async function emailSendAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await crm.sendByEmail(s, uuid.parse(f.get("id")), String(f.get("body") ?? ""));
+  revalidatePath("/mensajes");
+  redirect("/mensajes?enviado=1");
+}
+
+export async function skipMessageAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await crm.skip(s, uuid.parse(f.get("id")));
+  revalidatePath("/mensajes");
 }

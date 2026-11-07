@@ -29,6 +29,47 @@ semana y publica. Sin `RESEND_API_KEY`, los correos (incluido el enlace para
 entrar) se guardan en `apps/web/.data/outbox.jsonl`. `/dev/login` entra como
 cualquier persona y solo existe con `TURNO_DEV_LOGIN=1`.
 
+## Turno Guías
+
+Un marketplace y CRM para guías turísticos, sobre la misma base (plan en
+`replica/guias/`):
+
+- **Plataformas:** cada negocio tiene una dirección de reenvío; los correos
+  de reserva de GuruWalk, Freetour.com, Strawberry Tours, GetYourGuide,
+  Viator y Civitatis llegan a un solo calendario, y los dudosos a revisión.
+- **Calendario y app del guía:** guía por tour, check-in, cierre con
+  propinas; calendario privado para Google, Apple y Outlook.
+- **Equipo:** chat interno con canales, mensajes directos y tarjetas de tour.
+- **Viajeros:** un contacto por persona aunque venga de varias plataformas,
+  y una cola diaria de recordatorios y peticiones de reseña (correo, o
+  WhatsApp desde el teléfono del guía).
+- **Marketplace:** buscador público (`/guias`), perfil y paquetes del guía
+  (`/g/<slug>`), reserva con precio y comisión según plan, reseñas
+  verificadas, en español e inglés.
+- **Dinero:** ingresos por plataforma para el guía (`/ingresos`),
+  suscripciones y comisiones para Turno (`/admin`).
+- **Crecer:** lista de espera para tours llenos, aviso de sobreventa entre
+  plataformas, propinas con tarjeta por QR, fotos, preguntas de viajeros con
+  respuestas sugeridas, tarjetas regalo, ideas de precio según la demanda,
+  reparto de guías y pagos del mes, resumen semanal por correo y app
+  instalable con avisos.
+- **Pro:** cobros directos a la cuenta del guía, señal y cargo por no
+  presentarse, recibos, informe anual y DAC7, presupuestos para grupos, códigos
+  de descuento para hoteles, páginas por ciudad para Google, botón de reserva
+  para webs, mapa del recorrido y ubicación del grupo, aviso de lluvia, cambios
+  entre guías, API OCTO para GetYourGuide y Viator, importación CSV,
+  comparación de plataformas, verificación de guías e invitaciones.
+- **Más:** precios por temporada, paquetes con lo que incluyen, fotos en las
+  reseñas, mensajes de WhatsApp en Mensajes con respuestas automáticas,
+  descuento para quien repite, guion y formación por tour, seguro opcional,
+  tours a partir de una frase, varias ciudades por agencia y sello de turismo
+  sostenible.
+
+Falta lo que necesita tus cuentas: verificación de Google para Gmail, Stripe
+Connect y precios, un número de WhatsApp Business, una clave de Anthropic
+para formatos de correo desconocidos, y correos reales de cada plataforma.
+Estado de cada función: `replica/guias/features.csv`.
+
 ## Siguiente
 
 1. Conectar los servicios con tus propias cuentas: ver `replica/backend.md`.

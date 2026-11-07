@@ -4,9 +4,20 @@
 @tailwind utilities;
 
 @layer base {
-  html { background: var(--color-surface); color: var(--color-text); font-family: var(--font-sans); }
+  html { background: var(--color-surface); -webkit-font-smoothing: antialiased; color: var(--color-text); font-family: var(--font-sans); }
   body { font-size: var(--text-base); line-height: var(--leading-base); }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+  /* form fields show the ring on any focus (a date picker's calendar button only matches :focus-within) */
+  :is(input, select, textarea):is(:focus, :focus-within) { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .tnum { font-variant-numeric: tabular-nums; }
+  /* grid items default to min-width:auto, so one long word or chart widens the whole column past a phone screen */
+  .grid > * { min-width: 0; }
 }
+/* One orchestrated moment on load: the day's tours slide in and the weekly columns rise. */
+@keyframes grow-x { from { transform: scaleX(0); opacity: 0; } }
+@keyframes grow-y { from { transform: scaleY(0); } }
+@keyframes pulse-dot { 50% { transform: scale(1.6); opacity: .5; } }
+.anim-grow-x { transform-origin: left center; animation: grow-x 600ms cubic-bezier(.2,.8,.2,1) both; }
+.anim-grow-y { transform-box: fill-box; transform-origin: bottom; animation: grow-y 700ms cubic-bezier(.2,.8,.2,1) both; }
+.anim-pulse { animation: pulse-dot 2s ease-in-out infinite; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

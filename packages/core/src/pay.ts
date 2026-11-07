@@ -69,3 +69,15 @@ export function grossCents(t: Pick<Totals, "regularMinutes" | "overtimeMinutes">
 export function formatMoney(cents: number, currency = "USD", locale = "en-US"): string {
   return new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
 }
+
+/** Commission in cents from basis points (1800 = 18%), rounded to the cent. */
+export function commissionCents(grossCents: number, bps: number): number {
+  return Math.round((grossCents * bps) / 10_000);
+}
+
+export interface BookingMoney { grossCents: number; platformFeeCents: number; tipsCents: number; turnoCommissionCents: number }
+
+/** What the guide keeps from one booking. Never below zero. */
+export function guideNetCents(m: BookingMoney): number {
+  return Math.max(0, m.grossCents - m.platformFeeCents - m.turnoCommissionCents + m.tipsCents);
+}
