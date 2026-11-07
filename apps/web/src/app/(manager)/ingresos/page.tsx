@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { localDate } from "@turno/core";
 import { ChannelBadge } from "@/components/channel";
-import { ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
-import { money } from "@/lib/format";
+import { ButtonLink, Card, EmptyState, Kpi, PageHeader } from "@/components/ui";
+import { money, moneyWhole } from "@/lib/format";
 import { guideIncome } from "@/lib/guides";
 import { requireSession } from "@/lib/session";
 
@@ -32,12 +32,12 @@ export default async function IncomePage({ searchParams }: { searchParams: Promi
         <Card><EmptyState title="Sin reservas este mes" body="Cuando tus plataformas te manden reservas, aquí ves cuánto ganaste en cada una." /></Card>
       ) : (
         <div className="grid gap-4">
-          <Card className="tnum grid grid-cols-2 gap-4 text-sm md:grid-cols-4">
-            <div><p className="text-text-muted">Te quedó</p><p className="text-xl">{money(total.netCents, cur)}</p></div>
-            <div><p className="text-text-muted">Reservas · personas</p><p className="text-lg">{total.bookings} · {total.people}</p></div>
-            <div><p className="text-text-muted">Propinas</p><p className="text-lg">{money(total.tipsCents, cur)}</p></div>
-            <div><p className="text-text-muted">Pagaste a plataformas</p><p className="text-lg">{money(total.platformFeeCents + total.turnoCommissionCents, cur)}</p></div>
-          </Card>
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Kpi label="Te quedó" value={moneyWhole(total.netCents, cur)} note="después de comisiones, con propinas" edge="border-t-gold" />
+            <Kpi label="Reservas · personas" value={`${total.bookings} · ${total.people.toLocaleString("es-ES")}`} note="sin contar canceladas" edge="border-t-ch-viator" />
+            <Kpi label="Propinas" value={moneyWhole(total.tipsCents, cur)} note="anotadas al cerrar cada tour" edge="border-t-ch-guruwalk" />
+            <Kpi label="Pagaste a plataformas" value={moneyWhole(total.platformFeeCents + total.turnoCommissionCents, cur)} note="lo que se quedaron ellas" edge="border-t-ch-getyourguide" />
+          </div>
           <Card className="overflow-x-auto">
             <table className="tnum w-full min-w-[640px] text-left text-sm">
               <thead className="text-xs text-text-muted"><tr className="border-b border-border">

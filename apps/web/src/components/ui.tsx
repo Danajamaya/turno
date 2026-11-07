@@ -61,6 +61,18 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   return <section className={`rounded-lg border border-border bg-surface-raised p-6 shadow-card ${className}`}>{children}</section>;
 }
 
+/** Metric card with a coloured top edge, like the owner's CRMs. `edge` is a token class, e.g. "border-t-ch-viator". */
+export function Kpi({ label, value, note, edge = "border-t-accent", trend }: { label: string; value: string; note?: string; edge?: string; trend?: { text: string; up: boolean } }) {
+  return (
+    <div className={`rounded-lg border border-t-4 border-border bg-surface-raised p-5 shadow-card ${edge}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider text-text-muted">{label}</p>
+      <p className="tnum my-1 font-serif text-xl">{value}</p>
+      {trend ? <p className="text-sm text-text-muted"><span className={`font-semibold ${trend.up ? "text-success" : "text-danger"}`}>{trend.up ? "▲" : "▼"} {trend.text}</span> vs. mismos días del mes pasado</p>
+        : note ? <p className="text-sm text-text-muted">{note}</p> : null}
+    </div>
+  );
+}
+
 export function EmptyState({ title, body, action }: { title: string; body: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-start gap-2 py-6">
@@ -74,7 +86,7 @@ export function EmptyState({ title, body, action }: { title: string; body: strin
 export function PageHeader({ title, children }: { title: string; children?: ReactNode }) {
   return (
     <div className="mb-6 flex flex-wrap items-center gap-3">
-      <h1 className="mr-auto text-xl">{title}</h1>
+      <h1 className="mr-auto font-serif text-xl">{title}</h1>
       {children}
     </div>
   );

@@ -5,6 +5,10 @@ const LOCALE = "es-US";
 // Euros the Spanish way ("55,00 €"), dollars the US-Spanish way ("US$55.00").
 export const money = (cents: number, currency = "USD") => formatMoney(cents, currency, currency === "USD" ? LOCALE : "es-ES");
 
+/** Whole units for headline numbers: "4333 €". */
+export const moneyWhole = (cents: number, currency = "USD") =>
+  new Intl.NumberFormat(currency === "USD" ? LOCALE : "es-ES", { style: "currency", currency, maximumFractionDigits: 0 }).format(Math.round(cents / 100));
+
 /** "9:00" / "17:30" in the location's zone. */
 export const hm = (iso: string | Date, tz: string) => localTime(typeof iso === "string" ? new Date(iso) : iso, tz);
 

@@ -203,6 +203,17 @@ export async function calendar(s: Session, from: Date, to: Date): Promise<Calend
     order by b.starts_at`);
 }
 
+/** The bookings that arrived most recently, from any channel. */
+export async function recentBookings(s: Session, limit = 6): Promise<(CalendarBooking & { createdAt: string })[]> {
+  managerOnly(s);
+  return withUser(s.userId, (tx) => tx<(CalendarBooking & { createdAt: string })[]>`
+    select b.id, b.platform, b.external_ref, b.tour_name, b.starts_at, b.people, b.status, b.created_at,
+           t.name as traveller_name, t.phone as traveller_phone, t.email as traveller_email,
+           b.gross_cents, b.platform_fee_cents, b.tips_cents, b.turno_commission_cents, b.currency
+    from bookings b left join travellers t on t.id = b.traveller_id
+    where b.company_id = ${s.company.id} order by b.created_at desc limit ${limit}`);
+}
+
 export async function channels(s: Session) {
   managerOnly(s);
   return withUser(s.userId, (tx) => tx<{ id: string; platform: string; method: string; status: string; lastEventAt: string | null; feePerPersonCents: number }[]>`

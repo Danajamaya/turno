@@ -2,18 +2,18 @@
 export const theme = {
   "color": {
     "bg": "#ffffff",
-    "surface": "#f5f6f8",
+    "surface": "#f2f5fb",
     "surface-raised": "#ffffff",
-    "border": "#e2e5ea",
-    "border-input": "#7c8592",
-    "text": "#121620",
-    "text-muted": "#555e6b",
+    "border": "#e2e8f2",
+    "border-input": "#7c8799",
+    "text": "#13203d",
+    "text-muted": "#56627b",
     "text-inverse": "#ffffff",
-    "accent": "#3451c7",
-    "accent-hover": "#2a43a8",
-    "accent-soft": "#eaeefc",
+    "accent": "#2f5bd3",
+    "accent-hover": "#2549b0",
+    "accent-soft": "#e8eefc",
     "on-accent": "#ffffff",
-    "focus": "#3451c7",
+    "focus": "#2f5bd3",
     "danger": "#b42323",
     "danger-soft": "#fdecec",
     "on-danger": "#ffffff",
@@ -44,7 +44,25 @@ export const theme = {
     "role-7": "#eeeae2",
     "role-7-text": "#56462a",
     "role-8": "#ececf1",
-    "role-8-text": "#3a3f52"
+    "role-8-text": "#3a3f52",
+    "side-a": "#14224a",
+    "side-b": "#2c4a8a",
+    "side-text": "#c9d4ee",
+    "side-muted": "#9aa8cc",
+    "on-side": "#ffffff",
+    "gold": "#f2a91f",
+    "on-gold": "#14224a",
+    "gold-ink": "#8a5a00",
+    "gold-soft": "#fff4dc",
+    "ch-guruwalk": "#1baf7a",
+    "ch-freetour": "#eda100",
+    "ch-strawberry": "#e87ba4",
+    "ch-getyourguide": "#eb6834",
+    "ch-viator": "#2a78d6",
+    "ch-civitatis": "#6250d6",
+    "ch-turno": "#14224a",
+    "side-hover": "#2b3d70",
+    "side-line": "#34477c"
   },
   "type": {
     "xs": {
@@ -98,7 +116,7 @@ export const theme = {
   "radius": {
     "sm": 6,
     "md": 10,
-    "lg": 16,
+    "lg": 14,
     "pill": 999
   },
   "layout": {

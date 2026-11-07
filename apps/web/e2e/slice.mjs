@@ -63,7 +63,7 @@ const mails = (await readFile(".data/outbox.jsonl", "utf8")).trim().split("\n").
 const link = /http\S+token=[\w-]+/.exec(mails.filter((m) => m.to === "rosa@example.com").at(-1).text)[0];
 await page.goto(link);
 await page.getByRole("button", { name: "Entrar" }).click();
-await page.waitForURL("**/schedule");
+await page.waitForURL("**/inicio");
 step("signed out and back in with an emailed link");
 
 // F02: build and publish (S05/S06/S08)

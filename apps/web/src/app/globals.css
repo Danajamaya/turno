@@ -4,7 +4,7 @@
 @tailwind utilities;
 
 @layer base {
-  html { background: var(--color-surface); color: var(--color-text); font-family: var(--font-sans); }
+  html { background: var(--color-surface); -webkit-font-smoothing: antialiased; color: var(--color-text); font-family: var(--font-sans); }
   body { font-size: var(--text-base); line-height: var(--leading-base); }
   :focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
   .tnum { font-variant-numeric: tabular-nums; }

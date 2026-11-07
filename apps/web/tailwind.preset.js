@@ -47,6 +47,24 @@ module.exports = {
       "role-7-text": "var(--color-role-7-text)",
       "role-8": "var(--color-role-8)",
       "role-8-text": "var(--color-role-8-text)",
+      "side-a": "var(--color-side-a)",
+      "side-b": "var(--color-side-b)",
+      "side-text": "var(--color-side-text)",
+      "side-muted": "var(--color-side-muted)",
+      "on-side": "var(--color-on-side)",
+      "gold": "var(--color-gold)",
+      "on-gold": "var(--color-on-gold)",
+      "gold-ink": "var(--color-gold-ink)",
+      "gold-soft": "var(--color-gold-soft)",
+      "ch-guruwalk": "var(--color-ch-guruwalk)",
+      "ch-freetour": "var(--color-ch-freetour)",
+      "ch-strawberry": "var(--color-ch-strawberry)",
+      "ch-getyourguide": "var(--color-ch-getyourguide)",
+      "ch-viator": "var(--color-ch-viator)",
+      "ch-civitatis": "var(--color-ch-civitatis)",
+      "ch-turno": "var(--color-ch-turno)",
+      "side-hover": "var(--color-side-hover)",
+      "side-line": "var(--color-side-line)",
       "transparent": "transparent",
       "current": "currentColor"
     },
@@ -56,6 +74,9 @@ module.exports = {
       ],
       "mono": [
         "var(--font-mono)"
+      ],
+      "serif": [
+        "var(--font-serif)"
       ]
     },
     "fontSize": {

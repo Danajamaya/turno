@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { addLocalDays, localDate, localRange, weekDays, weekStartOf } from "@turno/core";
+import { addLocalDays, localDate, localRange, localTime, weekDays, weekStartOf } from "@turno/core";
 import { closeBookingAction } from "@/app/actions";
 import { ChannelBadge } from "@/components/channel";
+import { WeekGrid } from "@/components/week-grid";
+import { PLATFORMS } from "@/lib/guides";
 import { Badge, Button, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { dayLabel, hm, money, rangeLabel } from "@/lib/format";
 import { calendar } from "@/lib/guides";
@@ -34,7 +36,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         </div>
         <ButtonLink href="/canales" variant="secondary">Conectar plataformas</ButtonLink>
       </PageHeader>
-      <p className="tnum mb-4 text-sm text-text-muted">{live.length} reservas · {live.reduce((n, b) => n + b.people, 0)} personas esta semana</p>
+      <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
+        <span className="tnum rounded-pill bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">{live.length} reservas · {live.reduce((n, b) => n + b.people, 0)} personas</span>
+        {PLATFORMS.map((p) => <ChannelBadge key={p} platform={p} />)}
+      </div>
+      {list.length > 0 && (() => {
+        const [hh, mm] = localTime(new Date(), tz).split(":").map(Number);
+        return <div className="mb-6"><WeekGrid days={days} list={list} tz={tz} today={today} nowHours={hh + mm / 60} /></div>;
+      })()}
+      {list.length > 0 && <h2 className="mb-3 font-serif text-lg">Detalle de la semana</h2>}
       {list.length === 0 ? (
         <Card><EmptyState title="No hay reservas esta semana" body="Conecta tus plataformas y las reservas de GuruWalk, Freetour, Strawberry, GetYourGuide, Viator y Civitatis aparecen aquí solas." action={<ButtonLink href="/canales" variant="primary">Conectar plataformas</ButtonLink>} /></Card>
       ) : (

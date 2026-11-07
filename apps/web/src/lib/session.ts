@@ -19,7 +19,7 @@ export const getSession = cache(async (): Promise<Session | null> => {
 export async function requireSession(roles?: Role[]): Promise<Session> {
   const s = await getSession();
   if (!s) redirect("/login");
-  if (roles && !roles.includes(s.member.role)) redirect(s.member.role === "employee" ? "/clock" : "/schedule");
+  if (roles && !roles.includes(s.member.role)) redirect(s.member.role === "employee" ? "/clock" : "/inicio");
   return s;
 }
 
