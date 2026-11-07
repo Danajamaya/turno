@@ -5,7 +5,7 @@ import { requireSession } from "@/lib/session";
 import { listMembers } from "@/lib/store";
 import { AddMemberForm } from "./add-member-form";
 
-export const metadata: Metadata = { title: "Equipo" };
+export const metadata: Metadata = { title: "Guías" };
 const roleName = { owner: "Dueño", manager: "Gerente", employee: "Empleado" } as const;
 
 // S03 team list + S02 add people.
@@ -16,7 +16,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
   const staff = people.filter((p) => p.role !== "owner");
   return (
     <>
-      <PageHeader title="Equipo">{staff.length > 0 && <ButtonLink href="/schedule" variant="primary">Ir al horario</ButtonLink>}</PageHeader>
+      <PageHeader title="Guías">{staff.length > 0 && <ButtonLink href="/schedule" variant="primary">Ir al horario</ButtonLink>}</PageHeader>
       {nuevo && <div className="mb-6"><Banner tone="success" role="status">¡Listo! {s.company.name} ya está creado. Ahora agrega a tu equipo.</Banner></div>}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_360px]">
         <Card className="min-w-0">

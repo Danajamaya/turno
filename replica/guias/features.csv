@@ -29,3 +29,4 @@ Guide commissions for operators,finance,should,yes,no,Viamki feature
 Logging into platforms with stored guide passwords,channels,could,no,skip,against platform terms; risk to guides' accounts; liability
 Platform earnings for Turno (subscriptions and commissions),finance,must,n/a,partial,admin page + ledger from Stripe invoices; commissions arrive with marketplace sales
 Customer to sale to booking flow with time and price,marketplace,must,n/a,no,owner's ask 2026-11-07: public booking with price and payment
+"Team chat (Equipo): channels, direct messages, tour cards",team,must,n/a,partial,owner's ask; polling every 4 s; push notifications and files next

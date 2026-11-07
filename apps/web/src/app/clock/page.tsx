@@ -30,6 +30,7 @@ export default async function ClockPage() {
           <p className="text-xs text-text-muted">{s.location.name} · {s.company.name}</p>
         </div>
         {s.member.role !== "employee" && <Link href="/schedule" className="text-sm text-accent underline">Panel</Link>}
+        <Link href="/equipo" className="text-sm text-accent underline">Equipo</Link>
         <Link href="/account" className="text-sm text-accent underline">Cuenta</Link>
         <form action={signOutAction}><button className="text-sm text-accent underline">Salir</button></form>
       </header>
