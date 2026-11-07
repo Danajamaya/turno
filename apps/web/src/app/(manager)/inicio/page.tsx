@@ -12,6 +12,8 @@ import { calendar, channels, guideIncome, platformName, recentBookings, reviewQu
 import { listTours } from "@/lib/marketplace";
 import { overbookings } from "@/lib/waitlist";
 import { demandIdeas } from "@/lib/demand";
+import { forecast, rainAlerts } from "@/lib/weather";
+import { getProfile } from "@/lib/marketplace";
 import { closeDepartureAction } from "@/app/growth-actions";
 import { requireSession } from "@/lib/session";
 
@@ -64,6 +66,9 @@ export default async function HomePage() {
   const timeline = todays.map((g) => ({ key: g.key, start: hourOf(g.startsAt), time: hm(g.startsAt, tz), durationMin: byTitle.get(g.tourName)?.durationMin ?? 120, tourName: g.tourName, people: g.people,
     capacity: byTitle.get(g.tourName)?.capacity ?? null, byPlatform: [...g.byPlatform].sort((a, b) => b[1] - a[1]), href: `/calendario?semana=${today}` }));
   const nowH = hourOf(now.toISOString());
+  const profile = await getProfile(s);
+  const soon = groupTours(upcoming).filter((g) => new Date(g.startsAt).getTime() < now.getTime() + 36 * 3600_000);
+  const rain = rainAlerts(await forecast(profile?.city || s.location.name), soon.map((g) => ({ startsAt: g.startsAt, tourName: g.tourName, durationMin: byTitle.get(g.tourName)?.durationMin ?? 120 })));
   const wkLabel = (d: string) => new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T00:00:00Z`));
   const t = month.total, p = prev.total;
   const trend = (a: number, b: number) => { const v = pct(a, b); return v === null ? undefined : { text: `${Math.abs(v)} %`, up: v >= 0 }; };
@@ -99,6 +104,14 @@ export default async function HomePage() {
               </li>
             ))}
           </ul>
+        </section>
+      )}
+
+      {rain.length > 0 && (
+        <section className="rounded-lg border border-info bg-info-soft p-5" aria-labelledby="rain-h">
+          <h2 id="rain-h" className="text-lg text-info">🌧 Lluvia prevista en {rain.length === 1 ? "un tour" : `${rain.length} tours`}</h2>
+          <ul className="mt-2 grid gap-1 text-sm">{rain.map((r) => <li key={r.startsAt + r.tourName}><b>{dayLabel(localDate(new Date(r.startsAt), tz))} {hm(r.startsAt, tz)}</b> {r.tourName}: {r.rainChance} % de probabilidad</li>)}</ul>
+          <p className="mt-2 text-sm">Avisa a los grupos de que traigan paraguas desde <Link href="/mensajes" className="font-semibold underline">Mensajes</Link> o el chat del equipo.</p>
         </section>
       )}
 

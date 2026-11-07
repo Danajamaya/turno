@@ -52,6 +52,7 @@ export function BookingForm({ slug, tour, departures, tz, lang }: { slug: string
               <Field label={l.email} name="email" type="email" required autoComplete="email" defaultValue={s.fields?.email} help={l.emailHelp} />
               <Field label={l.phone} name="phone" type="tel" autoComplete="tel" defaultValue={s.fields?.phone} help={l.phoneHelp} />
               {tour.paid && <Field label={l.giftCode} name="gift" autoComplete="off" defaultValue={s.fields?.gift} placeholder="REGALO-XXXX-XXXX" help={l.giftHelp} />}
+              {tour.paid && <Field label={l.discountCode} name="discount" autoComplete="off" defaultValue={s.fields?.discount} help={l.discountHelp} />}
               <div className="sm:col-span-2"><Submit size="lg" className="w-full sm:w-auto">{l.book}</Submit></div>
             </>
           )}

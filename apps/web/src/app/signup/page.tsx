@@ -26,14 +26,16 @@ const ZONES = [
 ];
 
 // S01 + S02: owner account, business and first location in one step.
-export default function SignupPage() {
+export default async function SignupPage({ searchParams }: { searchParams: Promise<{ ref?: string }> }) {
+  const ref = (await searchParams).ref?.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 12);
   return (
     <main className="mx-auto max-w-xl px-4 py-12">
       <p className="mb-2 text-sm font-semibold text-accent">Turno</p>
       <h1 className="mb-2 text-xl">Arma el horario de tu equipo en minutos</h1>
       <p className="mb-8 text-text-muted">Crea tu negocio, agrega a tu gente y publica la semana. Gratis para empezar.</p>
       <Card>
-        <SignupForm zones={ZONES} />
+        {ref && <p className="mb-4 rounded-md bg-success-soft p-3 text-sm text-success">Te invitó otro guía: tu primer mes en Turno pagas la mitad de comisión.</p>}
+        <SignupForm zones={ZONES} referral={ref} />
       </Card>
       <p className="mt-6 text-sm text-text-muted">¿Ya tienes cuenta? <Link className="text-accent underline" href="/login">Entrar</Link></p>
     </main>

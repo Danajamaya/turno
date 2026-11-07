@@ -60,6 +60,14 @@ export function TourForm({ tour, currency }: { tour?: Tour; currency: string }) 
               ))}
             </div>
           </fieldset>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label={`Señal por persona (${currency})`} name="deposit" inputMode="decimal" defaultValue={tour?.depositCents ? (tour.depositCents / 100).toFixed(2) : ""} help="Se paga al reservar; el resto en el punto de encuentro. Vacío: todo en el punto." />
+            <Field label={`Cargo si no se presenta (${currency})`} name="noShowFee" inputMode="decimal" defaultValue={tour?.noShowFeeCents ? (tour.noShowFeeCents / 100).toFixed(2) : ""} help="Solo tours a la voluntad. Se guarda la tarjeta y se cobra si marcas «no vino»." />
+          </div>
+          <div><label htmlFor="stops" className="mb-1 block text-sm font-semibold">Paradas del recorrido</label>
+            <textarea id="stops" name="stops" rows={4} defaultValue={(tour?.stops ?? []).map((x) => x.lat !== null ? `${x.name} | ${x.lat}, ${x.lng}` : x.name).join("\n")} placeholder={"Plaza Mayor | 40.4155, -3.7074\nMercado de San Miguel\nPalacio Real | 40.4179, -3.7143"} className={area} aria-describedby="stops-help" />
+            <p id="stops-help" className="mt-1 text-xs text-text-muted">Una por línea. Las coordenadas son opcionales (en Google Maps: clic derecho en el sitio y copiar).</p></div>
+          <Field label="Material que hay que llevar" name="equipment" defaultValue={(tour?.equipment ?? []).join(", ")} placeholder="Bandera, auriculares, entradas del museo" help="Separado por comas. El guía lo marca antes de salir." />
           <label className="flex items-center gap-2 text-sm font-semibold"><input type="checkbox" name="published" defaultChecked={tour?.published ?? true} className="h-5 w-5" /> Publicado en mi página</label>
           <div className="flex gap-3"><Submit>Guardar tour</Submit><Link href="/perfil" className="inline-flex h-10 items-center px-4 text-sm font-semibold">Cancelar</Link></div>
         </>

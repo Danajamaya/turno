@@ -1,7 +1,7 @@
 // Row shapes as read from Postgres (camel-cased by lib/db.ts).
 export type Role = "owner" | "manager" | "employee";
 
-export interface Company { id: string; name: string; industry: string | null; currency: string; stripeCustomerId: string | null; createdAt: string }
+export interface Company { id: string; name: string; industry: string | null; country: string; currency: string; stripeCustomerId: string | null; stripeAccountId?: string | null; stripeAccountReady?: boolean; referralCode?: string; verificationStatus?: string; createdAt: string }
 
 export interface Location {
   id: string; companyId: string; name: string; timezone: string;

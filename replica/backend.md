@@ -49,6 +49,12 @@ to a hosted service yet: that needs the owner's accounts and keys.
      `GET /api/cron/weekly` with `Authorization: Bearer $CRON_SECRET`.
    - Push to phones: `npx web-push generate-vapid-keys`, then `VAPID_PUBLIC_KEY`,
      `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:you@your-domain`.
+   - **Stripe Connect** (Settings > Connect in Stripe): turn on Express accounts, then
+     add `account.updated` to the webhook events. Guides connect from Configuración.
+   - The hourly scheduler: `GET /api/cron/hourly` (same `CRON_SECRET`) releases
+     places held by unpaid deposits.
+   - OCTO: give each reseller (GetYourGuide, Viator) the API base `https://<domain>/api/octo`
+     and a key created in Plataformas; they certify the integration on their side.
    - `ANTHROPIC_API_KEY` (optional) for reply suggestions written by Claude;
      without it, suggestions are built from the business's own tour data.
 

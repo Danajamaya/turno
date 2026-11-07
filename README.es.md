@@ -53,6 +53,12 @@ Un marketplace y CRM para guías turísticos, sobre la misma base (plan en
   respuestas sugeridas, tarjetas regalo, ideas de precio según la demanda,
   reparto de guías y pagos del mes, resumen semanal por correo y app
   instalable con avisos.
+- **Pro:** cobros directos a la cuenta del guía, señal y cargo por no
+  presentarse, recibos, informe anual y DAC7, presupuestos para grupos, códigos
+  de descuento para hoteles, páginas por ciudad para Google, botón de reserva
+  para webs, mapa del recorrido y ubicación del grupo, aviso de lluvia, cambios
+  entre guías, API OCTO para GetYourGuide y Viator, importación CSV,
+  comparación de plataformas, verificación de guías e invitaciones.
 
 Falta lo que necesita tus cuentas: verificación de Google para Gmail, Stripe
 Connect y precios, un número de WhatsApp Business, una clave de Anthropic

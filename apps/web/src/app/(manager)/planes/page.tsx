@@ -5,6 +5,8 @@ import { Banner, Button, PageHeader } from "@/components/ui";
 import { system } from "@/lib/db";
 import { requireSession } from "@/lib/session";
 import { subscriptionFor } from "@/lib/store";
+import { referralInfo } from "@/lib/trust";
+import { CopyLink } from "./copy-link";
 import { PlanCalculator } from "./calculator";
 
 export const metadata: Metadata = { title: "Planes" };
@@ -22,6 +24,7 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
   const [sub, [bps]] = await Promise.all([subscriptionFor(s), system((tx) => tx<{ commissionBpsFree: number; commissionBpsPaid: number; commissionBpsPlus: number }[]>`select commission_bps_free, commission_bps_paid, commission_bps_plus from platform_settings`)]);
   const commission = { free: bps.commissionBpsFree / 100, essentials: bps.commissionBpsPaid / 100, plus: bps.commissionBpsPlus / 100 };
   const owner = s.member.role === "owner";
+  const ref = await referralInfo(s);
   return (
     <>
       <PageHeader title="Planes" />
@@ -53,6 +56,13 @@ export default async function PlansPage({ searchParams }: { searchParams: Promis
         <h2 className="font-serif text-lg">¿Qué plan te conviene?</h2>
         <p className="mb-4 text-sm text-text-muted">Mueve la barra según lo que vendes en Turno al mes.</p>
         <PlanCalculator plans={PLANS.map((p) => ({ name: p.name, fee: p.fee, pct: commission[p.id] }))} currency={s.company.currency} />
+      </section>
+      <section className="mt-6 rounded-lg border border-border bg-surface-raised p-6 shadow-card">
+        <h2 className="font-serif text-lg">Invita a otro guía</h2>
+        <p className="mb-4 text-sm text-text-muted">Quien se apunta con tu enlace paga la mitad de comisión su primer mes. Cuando publique su página, tú también tienes un mes a mitad de comisión.</p>
+        <CopyLink link={ref.link} />
+        <p className="mt-3 text-sm">{ref.invited === 0 ? "Todavía no invitaste a nadie." : `${ref.invited} ${ref.invited === 1 ? "guía se apuntó" : "guías se apuntaron"} con tu enlace.`}
+          {ref.reducedUntil && <b className="ml-1 text-success">Tienes media comisión hasta el {new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long" }).format(new Date(ref.reducedUntil))}.</b>}</p>
       </section>
     </>
   );

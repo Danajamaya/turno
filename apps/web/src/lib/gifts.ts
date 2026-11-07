@@ -23,10 +23,10 @@ export async function startGift(r: GiftRequest): Promise<{ url: string; code: st
     const [p] = await tx<{ companyId: string; companyName: string; currency: string }[]>`
       select gp.company_id, c.name as company_name, c.currency from guide_profiles gp join companies c on c.id = gp.company_id where gp.slug = ${r.slug} and gp.published`;
     if (!p) throw new RuleError("not_found", "Esta página ya no está disponible.");
-    const [g] = await tx<{ id: string; code: string; currency: string }[]>`
+    const [g] = await tx<{ id: string; code: string; currency: string; companyId: string }[]>`
       insert into gift_cards (company_id, code, amount_cents, balance_cents, currency, buyer_name, buyer_email, recipient_name, recipient_email, message)
       values (${p.companyId}, ${code()}, ${r.amountCents}, ${r.amountCents}, ${p.currency}, ${r.buyerName}, ${r.buyerEmail}, ${r.recipientName}, ${r.recipientEmail}, ${r.message})
-      returning id, code, currency`;
+      returning id, code, currency, company_id`;
     return { gift: g, companyName: p.companyName };
   });
   const done = `${appUrl()}/g/${r.slug}/regalo?listo=${gift.code}&lang=${r.language}`;
@@ -39,6 +39,7 @@ export async function startGift(r: GiftRequest): Promise<{ url: string; code: st
     mode: "payment", customer_email: r.buyerEmail,
     line_items: [{ quantity: 1, price_data: { currency: gift.currency.toLowerCase(), unit_amount: r.amountCents, product_data: { name: `Tarjeta regalo · ${companyName}` } } }],
     success_url: done, cancel_url: `${appUrl()}/g/${r.slug}/regalo?lang=${r.language}`,
+    payment_intent_data: await (await import("./money")).routeTo(gift.companyId, 0),
     metadata: { kind: "gift", gift_id: gift.id },
   });
   await system((tx) => tx`update gift_cards set stripe_session_id = ${cs.id} where id = ${gift.id}`);

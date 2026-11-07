@@ -8,6 +8,10 @@ import { getProfile, listTours } from "@/lib/marketplace";
 import { photosFor } from "@/lib/media";
 import { giftCards } from "@/lib/gifts";
 import { PhotoUploader } from "@/components/photo-uploader";
+import { discountCodes } from "@/lib/discounts";
+import { DiscountForm } from "./discount-form";
+import { toggleDiscountAction } from "@/app/pro-actions";
+import { appUrl } from "@/lib/email";
 import { markGiftPaidAction } from "@/app/growth-actions";
 import { requireSession } from "@/lib/session";
 import { ProfileForm, TourForm } from "./forms";
@@ -19,7 +23,7 @@ const DAYS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ editar?: string; nuevo?: string; guardado?: string }> }) {
   const s = await requireSession(["owner", "manager"]);
   const q = await searchParams;
-  const [profile, tours, gifts] = await Promise.all([getProfile(s), listTours(s), giftCards(s)]);
+  const [profile, tours, gifts, codes] = await Promise.all([getProfile(s), listTours(s), giftCards(s), discountCodes(s)]);
   const photos = await photosFor([s.company.id, ...tours.map((t) => t.id)]);
   const editing = q.editar ? tours.find((t) => t.id === q.editar) : undefined;
   const suggested = s.company.name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -59,6 +63,32 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
               </ul>
             )}
           </Card>
+          <Card>
+            <h2 className="mb-1 font-serif text-lg">Códigos de descuento y socios</h2>
+            <p className="mb-3 text-sm text-text-muted">Dale un código a un hotel o agencia: sus clientes tienen descuento y tú ves cuántas reservas te mandan y cuánto le debes de comisión.</p>
+            {codes.length > 0 && (
+              <ul className="mb-4 divide-y divide-border text-sm">
+                {codes.map((c) => (
+                  <li key={c.id} className="flex flex-wrap items-center gap-3 py-2.5">
+                    <span className="min-w-0 flex-1"><b className="tnum">{c.code}</b> <span className="text-text-muted">{c.percent ? `${c.percent} %` : money(c.amountCents!, s.company.currency)}{c.partnerName ? `, ${c.partnerName}` : ""}</span>
+                      <span className="tnum block text-xs text-text-muted">{c.bookings} reservas, {money(c.paidCents, s.company.currency)} vendidos{c.partnerCommissionBps ? `, comisión del socio ${money(c.commissionCents, s.company.currency)}` : ""}{c.maxUses ? `, ${c.uses}/${c.maxUses} usos` : ""}</span></span>
+                    <form action={toggleDiscountAction}><input type="hidden" name="id" value={c.id} /><input type="hidden" name="active" value={c.active ? "0" : "1"} />
+                      <Button size="sm" variant="ghost">{c.active ? "Pausar" : "Activar"}</Button></form>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <DiscountForm />
+          </Card>
+          {profile?.published && (
+            <Card>
+              <h2 className="mb-1 font-serif text-lg">Reservas desde tu web o Instagram</h2>
+              <p className="mb-3 text-sm text-text-muted">Pega esto en tu web y tus tours aparecen con un botón para reservar. En Instagram, pon tu enlace en la biografía.</p>
+              <label htmlFor="embed-code" className="mb-1 block text-sm font-semibold">Código para tu web</label>
+              <textarea id="embed-code" readOnly rows={3} className="w-full rounded-md border border-border-input bg-surface px-3 py-2 font-mono text-xs" value={`<iframe src="${appUrl()}/embed/${profile.slug}" title="Reserva tu tour con ${s.company.name}" style="width:100%;height:520px;border:0;border-radius:12px" loading="lazy"></iframe>`} />
+              <p className="mt-2 text-sm">Tu enlace: <a href={`/g/${profile.slug}`} className="font-semibold text-accent underline">{appUrl()}/g/{profile.slug}</a></p>
+            </Card>
+          )}
           <Card>
             <h2 className="mb-1 font-serif text-lg">Tarjetas regalo</h2>
             <p className="mb-3 text-sm text-text-muted">Se venden desde tu página pública. Si vendes una en mano, márcala como cobrada para activarla.</p>

@@ -14,6 +14,8 @@ import * as guideApp from "@/lib/guide-app";
 import * as feeds from "@/lib/feeds";
 import * as marketplace from "@/lib/marketplace";
 import * as crm from "@/lib/crm";
+import { paymentStepFor } from "@/lib/money";
+import { applyReferral } from "@/lib/trust";
 import { RuleError } from "@/lib/types";
 import { fieldsOf, firstError, localDateSchema, LoginInput, MemberInput, ReviewInput, ShiftInput, SignupInput, uuid } from "@/lib/validate";
 
@@ -32,7 +34,9 @@ export async function signupAction(_: FormState, f: FormData): Promise<FormState
   if (!input.success) return { error: firstError(input.error), fields };
   let userId: string;
   try {
-    ({ userId } = await db.createCompany(input.data));
+    let company: { id: string };
+    ({ userId, company } = await db.createCompany(input.data));
+    await applyReferral(company.id, String(f.get("ref") ?? "") || null);
   } catch (e) { return fail(e, fields); }
   await startSession(userId);
   redirect("/team?nuevo=1");
@@ -268,6 +272,11 @@ export async function saveTourAction(_: FormState, f: FormData): Promise<FormSta
       durationMin: Math.min(1440, Math.max(15, Math.round(n("durationMin", 120)))), capacity: Math.min(500, Math.max(1, Math.round(n("capacity", 20)))),
       priceModel: (["free_tip", "per_person", "per_group"].includes(model) ? model : "free_tip") as "free_tip", priceCents: Math.max(0, Math.round(n("price", 0) * 100)),
       published: f.get("published") === "on", maxPeoplePerBooking: Math.min(500, Math.max(1, Math.round(n("maxPeople", 10)))), weeklySlots: slots,
+      depositCents: Math.max(0, Math.round(n("deposit", 0) * 100)), noShowFeeCents: Math.max(0, Math.round(n("noShowFee", 0) * 100)),
+      // stops, one per line: "Plaza Mayor | 40.4155, -3.7074" (coordinates optional)
+      stops: String(f.get("stops") ?? "").split("\n").map((line) => { const [name, coords = ""] = line.split("|"); const [lat, lng] = coords.split(",").map((x) => Number(x.trim()));
+        return { name: name.trim(), lat: coords.trim() && Number.isFinite(lat) ? lat : null, lng: coords.trim() && Number.isFinite(lng) ? lng : null }; }).filter((x) => x.name),
+      equipment: String(f.get("equipment") ?? "").split(","),
     });
   } catch (e) { return fail(e); }
   revalidatePath("/perfil");
@@ -281,16 +290,18 @@ export async function deleteTourAction(f: FormData) {
 }
 
 export async function bookAction(_: FormState, f: FormData): Promise<FormState> {
-  const fields = fieldsOf(f, ["slug", "tourId", "startsAt", "people", "name", "email", "phone", "gift"]);
+  const fields = fieldsOf(f, ["slug", "tourId", "startsAt", "people", "name", "email", "phone", "gift", "discount"]);
   if (limited(`book:${await clientIp()}`, 10, 60 * 60_000)) return { error: TOO_MANY, fields };
   const email = LoginInput.safeParse({ email: fields.email });
   if (!fields.name.trim()) return { error: "Escribe tu nombre.", fields };
   if (!email.success) return { error: "Escribe un correo válido para mandarte la confirmación.", fields };
-  let code: string;
+  let code: string, bookingId: string;
   try {
-    ({ code } = await marketplace.book({ slug: fields.slug, tourId: uuid.parse(fields.tourId), startsAt: fields.startsAt, people: Math.round(Number(fields.people) || 0),
-      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es", giftCode: fields.gift || null }));
+    ({ code, bookingId } = await marketplace.book({ slug: fields.slug, tourId: uuid.parse(fields.tourId), startsAt: fields.startsAt, people: Math.round(Number(fields.people) || 0),
+      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es", giftCode: fields.gift || null, discountCode: fields.discount || null }));
   } catch (e) { return fail(e, fields); }
+  const step = await paymentStepFor(bookingId, fields.slug, f.get("lang") === "en" ? "en" : "es").catch(() => null);
+  if (step) redirect(step.url);
   redirect(`/g/${fields.slug}/reserva/${code}?lang=${f.get("lang") === "en" ? "en" : "es"}`);
 }
 

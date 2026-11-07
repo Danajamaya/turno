@@ -55,6 +55,7 @@ export async function startTip(token: string, amountCents: number): Promise<{ ur
     mode: "payment",
     line_items: [{ quantity: 1, price_data: { currency: page.currency.toLowerCase(), unit_amount: amountCents, product_data: { name: `Propina · ${page.tourName}`, description: page.guideName ?? page.companyName } } }],
     success_url: `${back}?gracias=1`, cancel_url: back,
+    payment_intent_data: await (await import("./money")).routeTo(p.c, 0), // tips go whole to the guide's account when connected
     metadata: { kind: "tip", tip_id: tip.id },
   });
   await system((tx) => tx`update tips set stripe_session_id = ${cs.id} where id = ${tip.id}`);

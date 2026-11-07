@@ -13,7 +13,7 @@ import { RuleError } from "./types";
 
 const hashToken = (t: string) => createHash("sha256").update(t).digest("hex");
 
-export interface Ask { slug: string; name: string; email: string; body: string; language: "es" | "en" }
+export interface Ask { slug: string; name: string; email: string; body: string; language: "es" | "en"; kind?: "question" | "quote"; details?: { people: number; date: string | null; groupKind: string } }
 
 /** A traveller asks something from the public page. Returns nothing the traveller could use to read others' threads. */
 export async function ask(a: Ask): Promise<void> {
@@ -28,25 +28,25 @@ export async function ask(a: Ask): Promise<void> {
       insert into travellers (company_id, name, email, language, first_platform) values (${p.companyId}, ${a.name}, ${a.email}, ${a.language}, 'turno')
       on conflict (company_id, lower(email)) where email is not null do update set name = case when travellers.name = '' then excluded.name else travellers.name end
       returning id`;
-    const [inq] = await tx<{ id: string }[]>`insert into inquiries (company_id, traveller_id, name, email, language, token_hash)
-      values (${p.companyId}, ${traveller.id}, ${a.name}, ${a.email}, ${a.language}, ${hashToken(token)}) returning id`;
+    const [inq] = await tx<{ id: string }[]>`insert into inquiries (company_id, traveller_id, name, email, language, token_hash, kind, details)
+      values (${p.companyId}, ${traveller.id}, ${a.name}, ${a.email}, ${a.language}, ${hashToken(token)}, ${a.kind ?? "question"}, ${a.details ? tx.json(a.details as never) : null}) returning id`;
     await tx`insert into inquiry_messages (inquiry_id, company_id, from_traveller, body) values (${inq.id}, ${p.companyId}, true, ${body.slice(0, 4000)})`;
     const managers = await tx<{ email: string }[]>`select email from members where company_id = ${p.companyId} and role in ('owner','manager') and status <> 'archived' and email is not null`;
     return { ...p, managers };
   });
-  for (const m of managers) await sendEmail({ to: m.email, subject: `Pregunta de ${a.name}`, text: `${a.name} pregunta desde tu página:\n\n«${body}»\n\nContesta desde Turno: ${appUrl()}/mensajes?tab=preguntas\n` });
+  for (const m of managers) await sendEmail({ to: m.email, subject: a.kind === "quote" ? `Presupuesto para ${a.details?.people ?? "un"} personas: ${a.name}` : `Pregunta de ${a.name}`, text: `${a.name} pregunta desde tu página:\n\n«${body}»\n\nContesta desde Turno: ${appUrl()}/mensajes?tab=preguntas\n` });
   await notifyMembers(companyId, { managers: true }, { title: `Pregunta de ${a.name}`, body: body.slice(0, 120), url: "/mensajes?tab=preguntas" });
   await sendEmail({ to: a.email, subject: a.language === "en" ? `Your question to ${companyName}` : `Tu pregunta a ${companyName}`,
     text: a.language === "en" ? `We sent your question to ${companyName}. You'll get the answer by email.\nFollow the conversation here: ${appUrl()}/consulta/${token}\n`
       : `Mandamos tu pregunta a ${companyName}. Te llegará la respuesta por correo.\nSigue la conversación aquí: ${appUrl()}/consulta/${token}\n` });
 }
 
-export interface Inquiry { id: string; name: string; email: string; language: "es" | "en"; status: string; lastMessageAt: string; messages: { fromTraveller: boolean; body: string; createdAt: string; memberName: string | null }[] }
+export interface Inquiry { id: string; name: string; email: string; language: "es" | "en"; status: string; lastMessageAt: string; kind: "question" | "quote"; details: { people: number; date: string | null; groupKind: string } | null; messages: { fromTraveller: boolean; body: string; createdAt: string; memberName: string | null }[] }
 
 async function threadsWhere(companyId: string | null, inquiryId: string | null, tokenHash: string | null, userId: string | null): Promise<(Inquiry & { companyId: string; companyName: string })[]> {
   const q = async (tx: Tx) => {
     const list = await tx<(Omit<Inquiry, "messages"> & { companyId: string; companyName: string })[]>`
-      select i.id, i.name, i.email, i.language, i.status, i.last_message_at, i.company_id, c.name as company_name
+      select i.id, i.name, i.email, i.language, i.status, i.last_message_at, i.kind, i.details, i.company_id, c.name as company_name
       from inquiries i join companies c on c.id = i.company_id
       where true ${companyId ? tx`and i.company_id = ${companyId}` : tx``} ${inquiryId ? tx`and i.id = ${inquiryId}` : tx``} ${tokenHash ? tx`and i.token_hash = ${tokenHash}` : tx``}
       order by (i.status = 'open') desc, i.last_message_at desc limit 50`;

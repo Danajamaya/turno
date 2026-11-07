@@ -27,6 +27,8 @@ export default async function IncomePage({ searchParams }: { searchParams: Promi
           <span className="min-w-36 text-center text-sm font-semibold">{monthLabel(ym)}</span>
           <ButtonLink href={`/ingresos?mes=${shift(ym, 1)}`} variant="ghost" size="sm" aria-label="Mes siguiente"><ChevronRight aria-hidden size={18} /></ButtonLink>
         </div>
+        <ButtonLink href="/ingresos/anual" variant="secondary">Informe anual para la declaración</ButtonLink>
+        <ButtonLink href="/ingresos/plataformas" variant="secondary">¿Dónde te conviene vender?</ButtonLink>
       </PageHeader>
       {rows.length === 0 ? (
         <Card><EmptyState title="Sin reservas este mes" body="Cuando tus plataformas te manden reservas, aquí ves cuánto ganaste en cada una." /></Card>

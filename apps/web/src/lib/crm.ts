@@ -3,6 +3,7 @@
 // email or opened in WhatsApp with the text ready, always previewed first;
 // and reviews that can only come from a real booking, through its own link.
 import "server-only";
+import { groupLink } from "./ops";
 import { createHash, randomBytes } from "node:crypto";
 import { addLocalDays, localDate, localRange } from "@turno/core";
 import { system, withUser } from "./db";
@@ -52,11 +53,11 @@ const SPANISH = /^\+(34|52|54|56|57|51|58|593|591|595|598|506|503|502|504|505|50
 export const guessLanguage = (language: string | null, phone: string | null): "es" | "en" =>
   language === "en" || language === "es" ? language : phone && !SPANISH.test(phone) ? "en" : "es";
 
-function reminder(lang: "es" | "en", v: { name: string; tour: string; when: string; meeting: string | null; company: string }) {
+function reminder(lang: "es" | "en", v: { name: string; tour: string; when: string; meeting: string | null; company: string; group?: string | null }) {
   const first = v.name.split(" ")[0] || (lang === "es" ? "hola" : "there");
   return lang === "es"
-    ? `¡Hola ${first}! Te esperamos mañana ${v.when} en «${v.tour}»${v.meeting ? `. Punto de encuentro: ${v.meeting}` : ""}. Si no puedes venir, avísanos por aquí. ¡Hasta mañana! — ${v.company}`
-    : `Hi ${first}! See you tomorrow ${v.when} for "${v.tour}"${v.meeting ? `. Meeting point: ${v.meeting}` : ""}. If you can't make it, just reply here. See you! — ${v.company}`;
+    ? `¡Hola ${first}! Te esperamos mañana ${v.when} en «${v.tour}»${v.meeting ? `. Punto de encuentro: ${v.meeting}` : ""}. Si no puedes venir, avísanos por aquí.${v.group ? ` Si llegas tarde, aquí ves dónde está el grupo: ${v.group}` : ""} ¡Hasta mañana! — ${v.company}`
+    : `Hi ${first}! See you tomorrow ${v.when} for "${v.tour}"${v.meeting ? `. Meeting point: ${v.meeting}` : ""}. If you can't make it, just reply here.${v.group ? ` Running late? See where the group is: ${v.group}` : ""} See you! — ${v.company}`;
 }
 function reviewAsk(lang: "es" | "en", v: { name: string; tour: string; link: string; company: string }) {
   const first = v.name.split(" ")[0] || "";
@@ -86,7 +87,8 @@ export async function buildQueue(s: Session, now = new Date()): Promise<number> 
       const tour = r.tourName ?? (lang === "es" ? "tu tour" : "your tour");
       if (r.status === "confirmed") {
         const when = new Intl.DateTimeFormat(lang === "es" ? "es-ES" : "en-GB", { hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date(r.startsAt));
-        const body = reminder(lang, { name: r.name, tour, when: lang === "es" ? `a las ${when}` : `at ${when}`, meeting: r.meetingPoint, company: s.company.name });
+        const body = reminder(lang, { name: r.name, tour, when: lang === "es" ? `a las ${when}` : `at ${when}`, meeting: r.meetingPoint, company: s.company.name,
+          group: r.tourName ? groupLink(s.company.id, new Date(r.startsAt).toISOString(), r.tourName) : null });
         const ins = await tx`insert into message_queue (company_id, booking_id, traveller_id, kind, language, body, due_on)
           values (${s.company.id}, ${r.id}, ${r.travellerId}, 'reminder', ${lang}, ${body}, ${today}) on conflict (booking_id, kind) do nothing returning id`;
         added += ins.length;
@@ -146,8 +148,8 @@ export async function skip(s: Session, id: string): Promise<void> {
 /** The review behind a link, for the public form. */
 export async function reviewByToken(token: string) {
   return system(async (tx) => {
-    const [r] = await tx<{ id: string; tourName: string | null; companyName: string; submittedAt: string | null; travellerName: string | null; slug: string | null }[]>`
-      select r.id, b.tour_name, c.name as company_name, r.submitted_at, t.name as traveller_name, gp.slug
+    const [r] = await tx<{ id: string; tourName: string | null; companyName: string; submittedAt: string | null; travellerName: string | null; slug: string | null; rating: number | null; googleReviewUrl: string | null }[]>`
+      select r.id, b.tour_name, c.name as company_name, r.submitted_at, t.name as traveller_name, gp.slug, r.rating, c.google_review_url
       from reviews r join bookings b on b.id = r.booking_id join companies c on c.id = r.company_id
       left join travellers t on t.id = b.traveller_id left join guide_profiles gp on gp.company_id = r.company_id
       where r.token_hash = ${hash(token)}`;

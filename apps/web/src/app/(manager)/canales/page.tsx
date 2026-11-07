@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Mail, Plug, CalendarSync } from "lucide-react";
 import { setFeeAction } from "@/app/actions";
 import { ChannelBadge } from "@/components/channel";
@@ -15,10 +16,16 @@ const senders: Record<string, string> = {
 };
 
 // G08 channel connections + G09 review queue.
+import { apiKeys } from "@/lib/octo";
+import { TEMPLATE } from "@/lib/importer";
+import { appUrl } from "@/lib/email";
+import { revokeApiKeyAction } from "@/app/pro-actions";
+import { ApiKeyForm, ImportForm } from "./platform-tools";
+
 export default async function ChannelsPage({ searchParams }: { searchParams: Promise<{ revisado?: string }> }) {
   const s = await requireSession(["owner", "manager"]);
   const { revisado } = await searchParams;
-  const [address, list, queue] = await Promise.all([forwardingAddress(s), channels(s), reviewQueue(s)]);
+  const [address, list, queue, keys] = await Promise.all([forwardingAddress(s), channels(s), reviewQueue(s), apiKeys(s)]);
   const gmailFilter = Object.values(senders).map((d) => `from:${d}`).join(" OR ");
   return (
     <>
@@ -76,7 +83,21 @@ export default async function ChannelsPage({ searchParams }: { searchParams: Pro
         </Card>
         <Card>
           <h2 className="mb-1 flex items-center gap-2 text-lg"><CalendarSync aria-hidden size={18} /> Calendario de Google, Apple u Outlook</h2>
-          <p className="text-sm text-text-muted">Próximamente: suscribe tu calendario a Turno y ve todas tus reservas en el teléfono.</p>
+          <p className="text-sm text-text-muted">Todas tus reservas en el calendario del teléfono. <Link href="/calendario/sincronizar" className="font-semibold text-accent underline">Conectar mi calendario</Link></p>
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">Importar reservas antiguas</h2>
+          <p className="mb-3 text-sm text-text-muted">Sube un Excel guardado como CSV (o lo que exporta tu plataforma) y tu historial, ingresos y viajeros quedan completos desde el primer día. Si importas el mismo archivo dos veces, no se duplica nada.</p>
+          <ImportForm template={TEMPLATE} />
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">Conexión directa por API (OCTO)</h2>
+          <p className="mb-3 text-sm text-text-muted">GetYourGuide, Viator y otras plataformas pueden conectarse a Turno con el estándar OCTO: ven tu disponibilidad real y las reservas entran al momento, sin correos. Crea una clave por plataforma y dásela a su equipo de conectividad.</p>
+          {keys.length > 0 && <ul className="mb-4 divide-y divide-border text-sm">{keys.map((k) => (
+            <li key={k.id} className="flex flex-wrap items-center gap-3 py-2"><span className="min-w-0 flex-1"><b>{k.label}</b> <span className="text-text-muted">{platformName[k.platform] ?? k.platform}</span>
+              <span className="block text-xs text-text-muted">{k.revokedAt ? "Revocada" : k.lastUsedAt ? `Último uso: ${new Date(k.lastUsedAt).toLocaleString("es-ES")}` : "Sin usar todavía"}</span></span>
+              {!k.revokedAt && <form action={revokeApiKeyAction}><input type="hidden" name="id" value={k.id} /><Button size="sm" variant="ghost">Revocar</Button></form>}</li>))}</ul>}
+          <ApiKeyForm base={appUrl()} />
         </Card>
       </div>
     </>

@@ -7,6 +7,8 @@ import { dayLabel, hm } from "@/lib/format";
 import { requireSession } from "@/lib/session";
 import { myPublishedShifts, openCard } from "@/lib/store";
 import { myTours } from "@/lib/guide-app";
+import { openSwaps } from "@/lib/ops";
+import { takeSwapAction } from "@/app/pro-actions";
 import { ChannelBadge } from "@/components/channel";
 import { ClockPanel } from "./clock-panel";
 
@@ -14,13 +16,16 @@ export const metadata: Metadata = { title: "Checar" };
 export const dynamic = "force-dynamic";
 
 // S16 clock in/out + S15 my upcoming shifts. Phone-first; managers can use it too.
-export default async function ClockPage() {
+export default async function ClockPage({ searchParams }: { searchParams: Promise<{ cambio?: string }> }) {
   const s = await requireSession();
+  const q = await searchParams;
   const tz = s.location.timezone;
   const today = localDate(new Date(), tz);
   const { start } = localRange(today, 1, tz);
   const { end } = localRange(today, 14, tz);
-  const [card, shifts, tours] = await Promise.all([openCard(s), myPublishedShifts(s, start, end), myTours(s, start, localRange(today, 1, tz).end)]);
+  const [card, shifts, tours, swaps] = await Promise.all([openCard(s), myPublishedShifts(s, start, end), myTours(s, start, localRange(today, 1, tz).end), openSwaps(s)]);
+  const takeable = swaps.filter((w) => w.fromMemberId !== s.member.id);
+  const swapMsg: Record<string, string> = { pedido: "Pedido. Le avisamos al equipo; te contamos cuando alguien lo coja.", hecho: "¡Listo! El tour ya es tuyo y lo ves en tu día.", busy: "No puedes cogerlo: ya llevas un tour a esa hora.", gone: "Ese cambio ya lo cogió otra persona." };
   const todays = shifts.filter((x) => localDate(new Date(x.startAt), tz) === today);
   const first = s.member.fullName.split(" ")[0];
 
@@ -37,6 +42,18 @@ export default async function ClockPage() {
         <form action={signOutAction}><button className="text-sm text-accent underline">Salir</button></form>
       </header>
 
+      {q.cambio && swapMsg[q.cambio] && <p role="status" className={`rounded-md px-4 py-3 text-sm ${q.cambio === "busy" || q.cambio === "gone" ? "bg-warning-soft text-warning" : "bg-success-soft text-success"}`}>{swapMsg[q.cambio]}</p>}
+      {takeable.length > 0 && (
+        <Card className="p-4">
+          <h2 className="text-lg">Tours que buscan guía</h2>
+          <ul className="mt-2 divide-y divide-border text-sm">{takeable.map((w) => (
+            <li key={w.id} className="flex items-center gap-3 py-2.5">
+              <span className="min-w-0 flex-1"><b className="first-letter:uppercase">{new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date(w.startsAt))}</b> {w.tourName}
+                <span className="block text-xs text-text-muted">De {w.fromName}{w.note ? `: ${w.note}` : ""}</span></span>
+              <form action={takeSwapAction}><input type="hidden" name="id" value={w.id} /><button className="rounded-md bg-accent px-3 py-2 font-semibold text-on-accent">Lo cojo</button></form>
+            </li>))}</ul>
+        </Card>
+      )}
       <Card>
         <p className="text-sm text-text-muted">
           {todays.length ? <>Hoy {todays.map((x) => `${hm(x.startAt, tz)}–${hm(x.endAt, tz)}`).join(", ")} · {todays[0].jobTitle ?? "Turno"}</> : "Hoy no tienes turno programado."}

@@ -97,3 +97,22 @@ Verified: 25 core + 42 integration tests (11 new for these features),
 `tsc`, `next build`, e2e/slice, guides, finish, crm, chat and the new
 e2e/growth in Chromium, and an axe-core WCAG 2.1 AA audit of 96 page and
 width combinations (manager, guide and public) with no violations.
+
+## Twenty more: money, sales, operations, platforms, trust (2026-11-07)
+
+| area | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| Stripe Connect, deposits, no-show fee | partial | Stripe keys and a test of each flow in Stripe's test mode | a deposit that is never paid would hold places forever; an hourly job releases them after 2 h and tells the waiting list |
+| fiscal data, DAC7, yearly report | done | the official DAC7 XML format | |
+| quotes, discount codes, partners | done | | the quote form reused the booking labels ("Personas", "Correo"), which screen readers and tests could not tell apart |
+| city pages, structured data, sitemap, widget | done | | |
+| Google review link | done | | |
+| route, live location, weather | done | live map refresh without reloading | the position link must stop showing a location after the tour |
+| notes, swaps, equipment | done | | a swap must be refused when the new guide already leads a tour at that time |
+| OCTO API | partial | certification with each reseller | holds have to count against capacity together with every platform's bookings |
+| CSV import, platform comparison | done | | |
+| verification, referrals | done | | verification documents must never go through the public photo route |
+
+Verified: 25 core + 56 integration tests (14 new), `tsc`, `next build`,
+e2e/slice, guides, finish, crm, chat, growth and the new e2e/pro in Chromium,
+and axe-core WCAG 2.1 AA on 112 page and width combinations with no violations.

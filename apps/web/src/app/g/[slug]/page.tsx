@@ -6,11 +6,14 @@ import { ChannelBadge } from "@/components/channel";
 import { PublicHeader } from "@/components/public-header";
 import { Cover } from "@/components/postcard";
 import { photosFor } from "@/lib/media";
+import { paymentsOn } from "@/lib/money";
+import { RouteStops } from "@/components/route-stops";
 import { companyReviews } from "@/lib/crm";
 import { money } from "@/lib/format";
 import { localeOf, pickLang, t } from "@/lib/i18n";
 import { departures, publicProfile } from "@/lib/marketplace";
 import { AskForm } from "./ask-form";
+import { QuoteForm } from "./quote-form";
 import { BookingForm } from "./booking-form";
 
 export const dynamic = "force-dynamic";
@@ -51,8 +54,17 @@ export default async function PublicProfile({ params, searchParams }: { params: 
   const when = (iso: string) => new Intl.DateTimeFormat(loc, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date(iso));
   const firstTime = (x: (typeof tours)[number]) => [...x.weeklySlots].map((s) => s.time).sort()[0] ?? null;
 
+  // structured data so search engines can show price, rating and the guide in results
+  const jsonLd = {
+    "@context": "https://schema.org", "@type": "LocalBusiness", name: p.companyName, description: p.headline || undefined, url: `/g/${slug}`,
+    address: p.city ? { "@type": "PostalAddress", addressLocality: p.city } : undefined,
+    aggregateRating: reviews.count > 0 ? { "@type": "AggregateRating", ratingValue: reviews.avg, reviewCount: reviews.count } : undefined,
+    makesOffer: tours.map((x) => ({ "@type": "Offer", price: x.priceModel === "free_tip" ? 0 : (x.priceCents / 100).toFixed(2), priceCurrency: x.currency,
+      itemOffered: { "@type": "TouristTrip", name: x.title, description: x.description ?? undefined, touristType: p.specialities } })),
+  };
   return (
     <div className="min-h-screen bg-bg">
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }} />
       <PublicHeader lang={lang} path={`/g/${slug}`}>
         <Link href={`/guias?lang=${lang}`} className="inline-flex items-center gap-1 text-sm font-semibold text-text-muted hover:text-text"><ChevronLeft aria-hidden size={16} />{l.toursAll}</Link>
       </PublicHeader>
@@ -73,7 +85,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                 {p.languages.length > 0 && <li className="inline-flex items-center gap-1.5"><Globe aria-hidden size={16} className="text-text-muted" />{p.languages.join(", ")}</li>}
                 {p.stats.travellers > 0 && <li className="tnum inline-flex items-center gap-1.5"><Users aria-hidden size={16} className="text-text-muted" />{l.travellers(p.stats.travellers.toLocaleString(loc))}</li>}
               </ul>
-              <p className="mt-4 inline-flex items-center gap-1.5 rounded-pill bg-success-soft px-3 py-1 text-xs font-semibold text-success"><BadgeCheck aria-hidden size={14} />{l.guideSince}</p>
+              {p.verifiedAt && <p className="mt-4 inline-flex items-center gap-1.5 rounded-pill bg-success-soft px-3 py-1 text-xs font-semibold text-success"><BadgeCheck aria-hidden size={14} />{l.verifiedGuide}</p>}
             </div>
           </section>
 
@@ -100,6 +112,9 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                             <span className="inline-flex items-center gap-1.5"><Clock aria-hidden size={14} />{duration(tour.durationMin)}</span>
                             {tour.meetingPoint && <span className="inline-flex items-center gap-1.5"><MapPin aria-hidden size={14} />{tour.meetingPoint}</span>}
                           </p>
+                          {paymentsOn() && (tour.depositCents ?? 0) > 0 && tour.priceModel !== "free_tip" && <p className="mt-1 text-xs text-text-muted">{l.depositNote(money(tour.depositCents!, tour.currency))}</p>}
+                          {paymentsOn() && (tour.noShowFeeCents ?? 0) > 0 && tour.priceModel === "free_tip" && <p className="mt-1 text-xs text-text-muted">{l.noShowNote(money(tour.noShowFeeCents!, tour.currency))}</p>}
+                          {(tour.stops ?? []).length > 0 && <RouteStops stops={tour.stops!} label={l.route} />}
                         </div>
                         <p className="tnum text-right font-serif text-xl">{tour.priceModel === "free_tip" ? l.tip : money(tour.priceCents, tour.currency)}
                           <span className="block font-sans text-xs font-normal text-text-muted">{tour.priceModel === "per_person" ? l.perPerson : tour.priceModel === "per_group" ? l.perGroup(tour.maxPeoplePerBooking) : l.tipSub}</span></p>
@@ -111,6 +126,8 @@ export default async function PublicProfile({ params, searchParams }: { params: 
               ))}
             </div>
           </section>
+
+          <QuoteForm slug={slug} lang={lang} />
 
           <section aria-labelledby="reviews-h">
             <h2 id="reviews-h" className="mb-1 font-serif text-lg">{l.reviewsTitle}</h2>

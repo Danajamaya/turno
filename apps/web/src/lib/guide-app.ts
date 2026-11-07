@@ -7,7 +7,7 @@ import { cardTipsCents, splitTips } from "./tips";
 import type { Session } from "./types";
 import { RuleError } from "./types";
 
-export interface Attendee { id: string; platform: string; externalRef: string; people: number; status: string; travellerName: string | null; travellerPhone: string | null; checkedInAt: string | null }
+export interface Attendee { id: string; platform: string; externalRef: string; people: number; status: string; travellerName: string | null; travellerPhone: string | null; checkedInAt: string | null; language?: string | null; notes?: string | null; children?: number }
 export interface TourGroup { key: string; startsAt: string; tourName: string; people: number; platforms: string[]; guideMemberId: string | null; guideName: string | null; tipsCents: number; attendees: Attendee[] }
 
 export const groupKey = (startsAt: string, tourName: string | null) => `${startsAt}|${tourName ?? ""}`;
@@ -20,7 +20,7 @@ export function parseKey(key: string): { startsAt: string; tourName: string } {
 async function load(tx: Tx, s: Session, from: Date, to: Date, onlyMine: boolean): Promise<TourGroup[]> {
   const rows = await tx<(Attendee & { startsAt: string; tourName: string | null; guideMemberId: string | null; guideName: string | null; tipsCents: number })[]>`
     select b.id, b.platform, b.external_ref, b.people, b.status, b.checked_in_at, b.starts_at, b.tour_name, b.guide_member_id, b.tips_cents,
-           t.name as traveller_name, t.phone as traveller_phone, g.full_name as guide_name
+           t.name as traveller_name, t.phone as traveller_phone, t.language, b.notes, b.children, g.full_name as guide_name
     from bookings b left join travellers t on t.id = b.traveller_id left join members g on g.id = b.guide_member_id
     where b.company_id = ${s.company.id} and b.starts_at >= ${from} and b.starts_at < ${to} and b.status <> 'cancelled'
       ${onlyMine ? tx`and b.guide_member_id = ${s.member.id}` : tx``}
@@ -32,7 +32,7 @@ async function load(tx: Tx, s: Session, from: Date, to: Date, onlyMine: boolean)
     g.people += r.people; g.tipsCents += r.tipsCents;
     if (!g.platforms.includes(r.platform)) g.platforms.push(r.platform);
     if (g.guideMemberId !== r.guideMemberId) { g.guideMemberId = null; g.guideName = null; } // mixed: not fully assigned
-    g.attendees.push({ id: r.id, platform: r.platform, externalRef: r.externalRef, people: r.people, status: r.status, travellerName: r.travellerName, travellerPhone: r.travellerPhone, checkedInAt: r.checkedInAt });
+    g.attendees.push({ id: r.id, platform: r.platform, externalRef: r.externalRef, people: r.people, status: r.status, travellerName: r.travellerName, travellerPhone: r.travellerPhone, checkedInAt: r.checkedInAt, language: r.language, notes: r.notes, children: r.children });
     by.set(key, g);
   }
   return [...by.values()];
@@ -80,6 +80,7 @@ export async function checkIn(s: Session, bookingId: string, present: boolean): 
       where id = ${bookingId} and company_id = ${s.company.id} and status <> 'cancelled' returning id`;
     if (!rows.length) throw new RuleError("not_found", "No se encontró esa reserva.");
   });
+  if (!present) await (await import("./money")).chargeNoShow(bookingId); // free tours with a card on file
 }
 
 /**

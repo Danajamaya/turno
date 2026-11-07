@@ -7,6 +7,10 @@ import { FREE_PLAN_PEOPLE } from "@/lib/types";
 import { DeleteAccountForm } from "./delete-account-form";
 import { summaryText, weekNumbers, weeklySummaryOn } from "@/lib/summary";
 import { weeklySummaryAction } from "@/app/growth-actions";
+import { connectAction } from "@/app/pro-actions";
+import { fiscal, paymentsOn } from "@/lib/money";
+import { FiscalForm } from "./fiscal-form";
+import { VerifyForm } from "./verify-form";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -14,11 +18,12 @@ const planName = { free: "Gratis", essentials: "Esencial", plus: "Plus" } as con
 const statusName = { trialing: "Prueba", active: "Activo", past_due: "Pago pendiente", canceled: "Cancelado", incomplete: "Incompleto" } as const;
 
 // S23 billing and account. Location rules (geofence, breaks, OT) come next.
-export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ pago?: string }> }) {
+export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ pago?: string; cobros?: string }> }) {
   const s = await requireSession(["owner", "manager"]);
   const q = await searchParams;
   const [sub, summaryOn, week] = await Promise.all([subscriptionFor(s), weeklySummaryOn(s.company.id), weekNumbers(s.company.id)]);
   const preview = summaryText(week);
+  const fis = await fiscal(s);
   const owner = s.member.role === "owner";
   return (
     <>
@@ -48,6 +53,29 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <Button variant="secondary">Administrar suscripción</Button>
             </form>
           ) : null}
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">Cobros a tu cuenta</h2>
+          <p className="mb-3 text-sm text-text-muted">Conecta tu cuenta bancaria con Stripe y lo que se cobre en Turno (señales, propinas con tarjeta, tarjetas regalo) te llega directamente, ya sin la comisión de Turno.</p>
+          {q.cobros === "listo" && <div className="mb-3"><Banner tone="success" role="status">Listo. En cuanto Stripe verifique tus datos, los cobros te llegan a tu cuenta.</Banner></div>}
+          {q.cobros === "payments_off" && <div className="mb-3"><Banner tone="warning" role="alert">Los cobros todavía no están configurados en este servidor.</Banner></div>}
+          {s.company.stripeAccountReady ? <p className="text-sm font-semibold text-success">✓ Conectada: los cobros llegan a tu cuenta.</p>
+            : !paymentsOn() ? <p className="text-sm text-text-muted">Disponible cuando Turno active los pagos con tarjeta.</p>
+            : owner ? <form action={connectAction}><Button>{s.company.stripeAccountId ? "Terminar de conectar" : "Conectar mi cuenta"}</Button></form>
+            : <p className="text-sm text-text-muted">La persona dueña de la cuenta puede conectarla.</p>}
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">Datos fiscales y reseñas en Google</h2>
+          <p className="mb-4 text-sm text-text-muted">Salen en los recibos de tus viajeros y en el informe anual. Con el enlace de Google, pedimos reseña allí a quien te pone 4 o 5 estrellas.</p>
+          <FiscalForm f={fis} />
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">Insignia de guía verificado</h2>
+          <p className="mb-3 text-sm text-text-muted">Los viajeros reservan más con quien tiene la identidad y la acreditación comprobadas. La insignia sale en tu página pública.</p>
+          {s.company.verificationStatus === "verified" ? <p className="text-sm font-semibold text-success">✓ Verificado</p>
+            : s.company.verificationStatus === "pending" ? <p className="text-sm">Lo estamos revisando. Te avisamos por correo.</p>
+            : owner ? <>{s.company.verificationStatus === "rejected" && <p className="mb-2 text-sm text-danger">No pudimos verificar los documentos anteriores. Vuelve a enviarlos.</p>}<VerifyForm /></>
+            : <p className="text-sm text-text-muted">La persona dueña de la cuenta puede pedirla.</p>}
         </Card>
         <Card>
           <h2 className="mb-1 text-lg">Resumen semanal</h2>

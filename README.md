@@ -67,6 +67,12 @@ A marketplace and CRM for tour guides, built on the same core (plan in
   card tips by QR, photos, questions from travellers with suggested replies,
   gift cards, price ideas from demand, suggested guide assignment and monthly
   guide pay, a weekly summary email, and an installable app with push.
+- **Pro:** payouts to the guide's own Stripe account, deposits and no-show fees,
+  receipts, yearly and DAC7 reports, group quotes, discount codes for hotel
+  partners, city pages for Google, a booking widget, route maps and live
+  group location, rain alerts, swaps between guides, an OCTO API for
+  GetYourGuide and Viator, CSV import, platform comparison, guide verification
+  and referrals.
 
 Still needs your accounts: Google verification for Gmail, Stripe Connect and
 prices, a WhatsApp Business number, an Anthropic key for unknown email
