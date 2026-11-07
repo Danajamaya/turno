@@ -6,6 +6,9 @@ import { guidePay, payRules, suggestAssignments } from "@/lib/guide-pay";
 import { requireSession } from "@/lib/session";
 import { autoAssignAction } from "@/app/growth-actions";
 import { PayRuleForm } from "./rule-form";
+import { listTours } from "@/lib/marketplace";
+import { trainedPairs } from "@/lib/training";
+import { setTrainedAction } from "@/app/pro-actions";
 
 export const metadata: Metadata = { title: "Pagos a guías" };
 export const dynamic = "force-dynamic";
@@ -18,6 +21,8 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
   const q = await searchParams;
   const ym = /^\d{4}-\d{2}$/.test(q.mes ?? "") ? q.mes! : new Date().toISOString().slice(0, 7);
   const now = new Date();
+  const [tourList, pairs] = await Promise.all([listTours(s), trainedPairs(s)]);
+  const needTraining = tourList.filter((t) => t.requiresTraining);
   const [rules, lines, next] = await Promise.all([payRules(s), guidePay(s, monthStart(ym), monthStart(ym, 1)), suggestAssignments(s, now, new Date(now.getTime() + 7 * 86_400_000))]);
   const cur = s.company.currency, tz = s.location.timezone;
   const label = (d: Date) => new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric", timeZone: "UTC" }).format(d);
@@ -65,6 +70,23 @@ export default async function PayPage({ searchParams }: { searchParams: Promise<
           )}
         </Card>
       </div>
+      {needTraining.length > 0 && (
+        <Card className="mt-6 p-5">
+          <h2 className="mb-1 text-lg">Formación por tour</h2>
+          <p className="mb-3 text-sm text-text-muted">Estos tours solo se proponen a guías formados. Márcalos cuando hayan hecho el tour de acompañante y conozcan el guion.</p>
+          <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Formación por tour">
+            <table className="w-full min-w-[480px] text-left text-sm">
+              <thead className="text-xs text-text-muted"><tr className="border-b border-border"><th scope="col" className="py-2 font-semibold">Tour</th>{rules.map((r) => <th key={r.memberId} scope="col" className="py-2 font-semibold">{r.fullName}</th>)}</tr></thead>
+              <tbody>{needTraining.map((t) => (
+                <tr key={t.id} className="border-b border-border last:border-0"><td className="py-2.5 font-semibold">{t.title}</td>
+                  {rules.map((r) => { const on = pairs.some((p) => p.tourId === t.id && p.memberId === r.memberId); return (
+                    <td key={r.memberId}><form action={setTrainedAction}><input type="hidden" name="tourId" value={t.id} /><input type="hidden" name="memberId" value={r.memberId} /><input type="hidden" name="on" value={on ? "0" : "1"} />
+                      <button aria-pressed={on} aria-label={`${r.fullName} formado en ${t.title}`} className={`rounded-pill px-3 py-1 text-xs font-semibold ${on ? "bg-success-soft text-success" : "border border-border-input text-text-muted"}`}>{on ? "✓ Formado" : "Sin formar"}</button></form></td>); })}
+                </tr>))}</tbody>
+            </table>
+          </div>
+        </Card>
+      )}
       <Card className="mt-6 p-5">
         <h2 className="mb-1 text-lg">Cómo se paga a cada guía</h2>
         <p className="mb-4 text-sm text-text-muted">Un fijo por tour, un importe por persona que vino y su parte de las propinas. Los idiomas sirven para proponer guía según el grupo.</p>

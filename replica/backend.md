@@ -55,8 +55,16 @@ to a hosted service yet: that needs the owner's accounts and keys.
      places held by unpaid deposits.
    - OCTO: give each reseller (GetYourGuide, Viator) the API base `https://<domain>/api/octo`
      and a key created in Plataformas; they certify the integration on their side.
-   - `ANTHROPIC_API_KEY` (optional) for reply suggestions written by Claude;
-     without it, suggestions are built from the business's own tour data.
+   - `ANTHROPIC_API_KEY` (optional) for reply suggestions and tour drafts written
+     by Claude; without it, both are built from the business's own data.
+   - **WhatsApp Business** (Meta for Developers): create an app with the WhatsApp
+     product, add the business number, and set `WHATSAPP_TOKEN` (a permanent
+     system-user token), `WHATSAPP_APP_SECRET` (App settings > Basic) and
+     `WHATSAPP_VERIFY_TOKEN` (any string you choose). Configure the webhook URL
+     `https://<domain>/api/whatsapp` with that verify token and subscribe to
+     `messages`. Each business enters its Phone number ID in Configuración.
+   - Optional travel insurance is only a price added to the booking; selling real
+     policies needs an agreement with an insurer.
 
 All variables are listed in `.env.example`.
 

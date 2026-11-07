@@ -53,7 +53,7 @@ export async function photosFor(ownerIds: string[]): Promise<Map<string, string[
 
 export async function photoBytes(id: string): Promise<{ type: string; bytes: Buffer } | null> {
   // verification documents are private: never served here
-  const [m] = await system((tx) => tx<{ contentType: string; bytes: Buffer }[]>`select content_type, bytes from media where id = ${id} and owner_kind in ('profile','tour')`);
+  const [m] = await system((tx) => tx<{ contentType: string; bytes: Buffer }[]>`select content_type, bytes from media where id = ${id} and owner_kind in ('profile','tour','review')`);
   return m ? { type: m.contentType, bytes: m.bytes } : null;
 }
 

@@ -8,7 +8,7 @@ import type { Departure } from "@/lib/marketplace";
 import { localeOf, t, type Lang } from "@/lib/i18n-dict";
 
 // Pick a departure (by day, then time), say how many and who: done.
-export function BookingForm({ slug, tour, departures, tz, lang }: { slug: string; tour: { id: string; maxPeople: number; paid?: boolean }; departures: Departure[]; tz: string; lang: Lang }) {
+export function BookingForm({ slug, tour, departures, tz, lang }: { slug: string; tour: { id: string; maxPeople: number; paid?: boolean; insurance?: string | null }; departures: Departure[]; tz: string; lang: Lang }) {
   const [pick, setPick] = useState<string>("");
   const [all, setAll] = useState(false);
   const l = t(lang);
@@ -53,6 +53,7 @@ export function BookingForm({ slug, tour, departures, tz, lang }: { slug: string
               <Field label={l.phone} name="phone" type="tel" autoComplete="tel" defaultValue={s.fields?.phone} help={l.phoneHelp} />
               {tour.paid && <Field label={l.giftCode} name="gift" autoComplete="off" defaultValue={s.fields?.gift} placeholder="REGALO-XXXX-XXXX" help={l.giftHelp} />}
               {tour.paid && <Field label={l.discountCode} name="discount" autoComplete="off" defaultValue={s.fields?.discount} help={l.discountHelp} />}
+              {tour.insurance && <label className="flex items-start gap-2 text-sm sm:col-span-2"><input type="checkbox" name="insurance" className="mt-0.5 h-5 w-5" /><span><b>{l.insuranceAdd(tour.insurance)}</b><span className="block text-xs text-text-muted">{l.insuranceHelp}</span></span></label>}
               <div className="sm:col-span-2"><Submit size="lg" className="w-full sm:w-auto">{l.book}</Submit></div>
             </>
           )}

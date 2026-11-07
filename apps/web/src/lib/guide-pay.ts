@@ -61,6 +61,8 @@ export async function suggestAssignments(s: Session, from: Date, to: Date): Prom
   const rules = await payRules(s);
   if (!rules.length) return [];
   return withUser(s.userId, async (tx) => {
+    const needs = await tx<{ title: string; trained: string[] }[]>`select t.title, coalesce(array_agg(tt.member_id::text) filter (where tt.member_id is not null), '{}') as trained
+      from tours t left join tour_training tt on tt.tour_id = t.id where t.company_id = ${s.company.id} and t.requires_training group by t.title`;
     const groups = await tx<{ startsAt: string; tourName: string | null; durationMin: number | null; assigned: string | null; languages: string[] }[]>`
       select b.starts_at, b.tour_name, max(t.duration_min) as duration_min, max(b.guide_member_id::text) as assigned,
              coalesce(array_agg(distinct tr.language) filter (where tr.language is not null), '{}') as languages
@@ -79,7 +81,8 @@ export async function suggestAssignments(s: Session, from: Date, to: Date): Prom
       const [a, b] = span(g);
       const lang = g.languages.includes("en") ? "en" : g.languages.includes("es") ? "es" : null;
       const speaks = (r: PayRule) => !lang || r.languages.length === 0 || r.languages.some((l) => l.toLowerCase().startsWith(lang === "en" ? "en" : "es") || (lang === "en" && /ingl/i.test(l)) || (lang === "es" && /spanish|españ/i.test(l)));
-      const free = rules.filter((r) => !busy.get(r.memberId)!.some(([x, y]) => x < b && a < y)
+      const need = needs.find((n) => n.title === g.tourName);
+      const free = rules.filter((r) => (!need || need.trained.includes(r.memberId)) && !busy.get(r.memberId)!.some(([x, y]) => x < b && a < y)
         && !off.some((o) => o.memberId === r.memberId && new Date(o.startAt).getTime() < b && a < new Date(o.endAt).getTime()));
       if (!free.length) continue;
       const pool = free.filter(speaks).length ? free.filter(speaks) : free;

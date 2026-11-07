@@ -116,3 +116,21 @@ width combinations (manager, guide and public) with no violations.
 Verified: 25 core + 56 integration tests (14 new), `tsc`, `next build`,
 e2e/slice, guides, finish, crm, chat, growth and the new e2e/pro in Chromium,
 and axe-core WCAG 2.1 AA on 112 page and width combinations with no violations.
+
+## Ten ideas: seasons, packages, WhatsApp, training, AI drafts, cities, sustainability (2026-11-07)
+
+| area | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| seasonal prices, loyalty, insurance | done | an insurance partner for real policies | a tour-specific season must win over one for every tour on the same day |
+| combo packages, review photos | done | | |
+| WhatsApp auto-replies | partial | a Meta app, a WhatsApp Business number and its token | only a specific answer is sent automatically; a generic one waits for a person |
+| training, script in the guide app | done | | |
+| AI tour creator | done | `ANTHROPIC_API_KEY` for drafts written by Claude | finding stops in a sentence ("el barrio de Triana") needed proper-name matching, not prepositions |
+| cities | done | | |
+| sustainable seal and filter | done | an external certification, if wanted | |
+
+Verified: 25 core + 64 integration tests (8 new), `tsc`, `next build`,
+the 7 existing e2e flows and the new e2e/more in Chromium, and axe-core
+WCAG 2.1 AA on 100 page and width combinations with no violations. The new
+season form first reused the labels "Nombre" and "Precio", which the existing
+flows (and screen readers) could not tell apart from the tour form; renamed.

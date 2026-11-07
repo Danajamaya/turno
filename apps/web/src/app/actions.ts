@@ -252,7 +252,8 @@ export async function saveProfileAction(_: FormState, f: FormData): Promise<Form
   if (video && !/^https:\/\/(www\.)?(youtube\.com|youtu\.be|vimeo\.com)\//.test(video)) return { error: "El video tiene que ser un enlace de YouTube o Vimeo." };
   try {
     await marketplace.saveProfile(s, { slug: str("slug", 41).toLowerCase(), headline: str("headline", 120), bio: str("bio", 2000), city: str("city", 80),
-      languages: list(f.get("languages")), specialities: list(f.get("specialities")), videoUrl: video || null, published: f.get("published") === "on" });
+      languages: list(f.get("languages")), specialities: list(f.get("specialities")), videoUrl: video || null, published: f.get("published") === "on",
+      sustainableLocal: f.get("sustainableLocal") === "on", sustainableNoPlastic: f.get("sustainableNoPlastic") === "on", sustainablePublicTransport: f.get("sustainablePublicTransport") === "on" });
   } catch (e) { return fail(e); }
   revalidatePath("/perfil");
   return { ok: "Perfil guardado." };
@@ -277,6 +278,8 @@ export async function saveTourAction(_: FormState, f: FormData): Promise<FormSta
       stops: String(f.get("stops") ?? "").split("\n").map((line) => { const [name, coords = ""] = line.split("|"); const [lat, lng] = coords.split(",").map((x) => Number(x.trim()));
         return { name: name.trim(), lat: coords.trim() && Number.isFinite(lat) ? lat : null, lng: coords.trim() && Number.isFinite(lng) ? lng : null }; }).filter((x) => x.name),
       equipment: String(f.get("equipment") ?? "").split(","),
+      includes: String(f.get("includes") ?? "").split(","), script: String(f.get("script") ?? ""), requiresTraining: f.get("requiresTraining") === "on",
+      insuranceCents: Math.max(0, Math.round(n("insurance", 0) * 100)), locationId: f.get("locationId") ? uuid.parse(f.get("locationId")) : undefined,
     });
   } catch (e) { return fail(e); }
   revalidatePath("/perfil");
@@ -298,7 +301,7 @@ export async function bookAction(_: FormState, f: FormData): Promise<FormState> 
   let code: string, bookingId: string;
   try {
     ({ code, bookingId } = await marketplace.book({ slug: fields.slug, tourId: uuid.parse(fields.tourId), startsAt: fields.startsAt, people: Math.round(Number(fields.people) || 0),
-      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es", giftCode: fields.gift || null, discountCode: fields.discount || null }));
+      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es", giftCode: fields.gift || null, discountCode: fields.discount || null, insurance: f.get("insurance") === "on" }));
   } catch (e) { return fail(e, fields); }
   const step = await paymentStepFor(bookingId, fields.slug, f.get("lang") === "en" ? "en" : "es").catch(() => null);
   if (step) redirect(step.url);
@@ -310,7 +313,8 @@ export async function bookAction(_: FormState, f: FormData): Promise<FormState> 
 export async function submitReviewAction(_: FormState, f: FormData): Promise<FormState> {
   if (limited(`review:${await clientIp()}`, 20, 60 * 60_000)) return { error: TOO_MANY };
   const token = String(f.get("token") ?? "");
-  try { await crm.submitReview(token, Number(f.get("rating")), String(f.get("body") ?? ""), String(f.get("author") ?? "")); } catch (e) { return fail(e); }
+  const photos = await Promise.all(f.getAll("photo").filter((x): x is File => x instanceof File && x.size > 0).slice(0, 3).map(async (x) => new Uint8Array(await x.arrayBuffer())));
+  try { await crm.submitReview(token, Number(f.get("rating")), String(f.get("body") ?? ""), String(f.get("author") ?? ""), photos); } catch (e) { return fail(e); }
   redirect(`/resena/${token}?ok=1&lang=${f.get("lang") === "en" ? "en" : "es"}`);
 }
 

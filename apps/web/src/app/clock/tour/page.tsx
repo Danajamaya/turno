@@ -11,6 +11,7 @@ import { myTours } from "@/lib/guide-app";
 import { cardTipsCents, tipLink } from "@/lib/tips";
 import { canSign } from "@/lib/sign";
 import { equipmentState, groupLink } from "@/lib/ops";
+import { tourScript } from "@/lib/training";
 import { ShareLocation } from "@/components/share-location";
 import { bookingNotesAction, requestSwapAction, toggleEquipmentAction } from "@/app/pro-actions";
 import { money } from "@/lib/format";
@@ -35,6 +36,7 @@ export default async function TourPage({ searchParams }: { searchParams: Promise
   const tipUrl = canSign() ? await tipLink(s, tour.key) : null;
   const qr = tipUrl ? await QRCode.toString(tipUrl, { type: "svg", margin: 1, color: { dark: "#14224a", light: "#ffffff" } }) : null;
   const gear = await equipmentState(s, tour.key);
+  const script = await tourScript(s, tour.tourName);
   const where = groupLink(s.company.id, tour.startsAt, tour.tourName);
   const upcoming = new Date(tour.startsAt) > new Date();
   return (
@@ -72,6 +74,12 @@ export default async function TourPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
       </Card>
+      {script && (
+        <details className="rounded-lg border border-border bg-surface-raised p-4">
+          <summary className="cursor-pointer text-lg font-semibold">Guion del tour</summary>
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{script}</p>
+        </details>
+      )}
       {gear.items.length > 0 && (
         <Card className="p-4">
           <h2 className="text-lg">Antes de salir</h2>

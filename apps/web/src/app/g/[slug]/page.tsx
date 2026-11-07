@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, CalendarCheck, ChevronLeft, Clock, Gift, Globe, MapPin, Star, Users, Wallet } from "lucide-react";
+import { BadgeCheck, CalendarCheck, Leaf, ChevronLeft, Clock, Gift, Globe, MapPin, Star, Users, Wallet } from "lucide-react";
 import { ChannelBadge } from "@/components/channel";
 import { PublicHeader } from "@/components/public-header";
 import { Cover } from "@/components/postcard";
 import { photosFor } from "@/lib/media";
 import { paymentsOn } from "@/lib/money";
+import { upcomingSeasons } from "@/lib/seasons";
 import { RouteStops } from "@/components/route-stops";
 import { companyReviews } from "@/lib/crm";
 import { money } from "@/lib/format";
@@ -41,7 +42,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
   if (!p) notFound();
   const tz = p.timezone ?? "Europe/Madrid";
   const [tours, reviews] = await Promise.all([
-    Promise.all(p.tours.map(async (tour) => ({ ...tour, deps: await departures(tour, p.companyId, tz) }))),
+    Promise.all(p.tours.map(async (tour) => ({ ...tour, deps: await departures(tour, p.companyId, tz), seasons: await upcomingSeasons(p.companyId, tour.id) }))),
     companyReviews(p.companyId, 8),
   ]);
   const video = embed(p.videoUrl);
@@ -52,6 +53,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
   const from = paid.length ? Math.min(...paid.map((x) => x.priceCents)) : null;
   const next = tours.flatMap((x) => x.deps.filter((d) => d.left > 0).map((d) => ({ ...d, tour: x }))).sort((a, b) => a.startsAt.localeCompare(b.startsAt)).slice(0, 4);
   const when = (iso: string) => new Intl.DateTimeFormat(loc, { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: tz }).format(new Date(iso));
+  const fmtDay = (d: string) => new Intl.DateTimeFormat(loc, { day: "numeric", month: "short", timeZone: "UTC" }).format(new Date(`${d}T12:00:00Z`));
   const firstTime = (x: (typeof tours)[number]) => [...x.weeklySlots].map((s) => s.time).sort()[0] ?? null;
 
   // structured data so search engines can show price, rating and the guide in results
@@ -86,6 +88,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                 {p.stats.travellers > 0 && <li className="tnum inline-flex items-center gap-1.5"><Users aria-hidden size={16} className="text-text-muted" />{l.travellers(p.stats.travellers.toLocaleString(loc))}</li>}
               </ul>
               {p.verifiedAt && <p className="mt-4 inline-flex items-center gap-1.5 rounded-pill bg-success-soft px-3 py-1 text-xs font-semibold text-success"><BadgeCheck aria-hidden size={14} />{l.verifiedGuide}</p>}
+              {p.sustainable && <p className="ml-2 mt-4 inline-flex items-center gap-1.5 rounded-pill bg-success-soft px-3 py-1 text-xs font-semibold text-success" title={l.sustainableWhy}><Leaf aria-hidden size={14} />{l.sustainable}<span className="sr-only">: {l.sustainableWhy}</span></p>}
             </div>
           </section>
 
@@ -114,12 +117,14 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                           </p>
                           {paymentsOn() && (tour.depositCents ?? 0) > 0 && tour.priceModel !== "free_tip" && <p className="mt-1 text-xs text-text-muted">{l.depositNote(money(tour.depositCents!, tour.currency))}</p>}
                           {paymentsOn() && (tour.noShowFeeCents ?? 0) > 0 && tour.priceModel === "free_tip" && <p className="mt-1 text-xs text-text-muted">{l.noShowNote(money(tour.noShowFeeCents!, tour.currency))}</p>}
+                          {(tour.includes ?? []).length > 0 && <p className="mt-2 flex flex-wrap gap-1.5 text-xs"><span className="font-semibold">{l.includes}</span>{tour.includes!.map((x) => <span key={x} className="rounded-pill bg-gold-soft px-2 py-0.5 text-gold-ink">{x}</span>)}</p>}
+                          {tour.priceModel !== "free_tip" && tour.seasons.map((x) => <p key={x.id} className="mt-1 text-xs text-text-muted">{l.season(x.name, x.percent, fmtDay(x.startsOn), fmtDay(x.endsOn))}</p>)}
                           {(tour.stops ?? []).length > 0 && <RouteStops stops={tour.stops!} label={l.route} />}
                         </div>
                         <p className="tnum text-right font-serif text-xl">{tour.priceModel === "free_tip" ? l.tip : money(tour.priceCents, tour.currency)}
                           <span className="block font-sans text-xs font-normal text-text-muted">{tour.priceModel === "per_person" ? l.perPerson : tour.priceModel === "per_group" ? l.perGroup(tour.maxPeoplePerBooking) : l.tipSub}</span></p>
                       </div>
-                      <BookingForm slug={slug} tour={{ id: tour.id, maxPeople: tour.maxPeoplePerBooking, paid: tour.priceModel !== "free_tip" }} departures={tour.deps} tz={tz} lang={lang} />
+                      <BookingForm slug={slug} tour={{ id: tour.id, maxPeople: tour.maxPeoplePerBooking, paid: tour.priceModel !== "free_tip", insurance: (tour.insuranceCents ?? 0) > 0 ? money(tour.insuranceCents!, tour.currency) : null }} departures={tour.deps} tz={tz} lang={lang} />
                     </div>
                   </div>
                 </article>
@@ -156,6 +161,9 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                         <span><b className="block">{r.authorName ?? "—"}</b><span className="text-xs text-gold" aria-label={`${r.rating}/5`}>{"★".repeat(r.rating)}<span className="text-border">{"★".repeat(5 - r.rating)}</span></span></span>
                       </p>
                       {r.body && <p className="mt-2 leading-relaxed">{r.body}</p>}
+                      {r.photos.length > 0 && <div className="mt-2 flex gap-2">{r.photos.map((id) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <a key={id} href={`/api/media/${id}`} target="_blank" rel="noopener"><img src={`/api/media/${id}`} alt={`${r.authorName ?? ""}: foto del tour`} loading="lazy" className="h-20 w-20 rounded-md object-cover" /></a>))}</div>}
                       <p className="mt-2 flex flex-wrap items-center gap-3 text-xs text-text-muted"><span className="inline-flex items-center gap-1 text-success"><BadgeCheck aria-hidden size={13} />{l.verified}</span><ChannelBadge platform={r.platform} /></p>
                     </li>
                   ))}

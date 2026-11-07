@@ -11,6 +11,9 @@ import { connectAction } from "@/app/pro-actions";
 import { fiscal, paymentsOn } from "@/lib/money";
 import { FiscalForm } from "./fiscal-form";
 import { VerifyForm } from "./verify-form";
+import { CommsForm } from "./comms-form";
+import { system } from "@/lib/db";
+import { whatsappOn } from "@/lib/whatsapp";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -24,6 +27,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   const [sub, summaryOn, week] = await Promise.all([subscriptionFor(s), weeklySummaryOn(s.company.id), weekNumbers(s.company.id)]);
   const preview = summaryText(week);
   const fis = await fiscal(s);
+  const [comms] = await system((tx) => tx<{ whatsappPhoneId: string | null; whatsappAutoReply: boolean; loyaltyPercent: number }[]>`select whatsapp_phone_id, whatsapp_auto_reply, loyalty_percent from companies where id = ${s.company.id}`);
   const owner = s.member.role === "owner";
   return (
     <>
@@ -68,6 +72,11 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
           <h2 className="mb-1 text-lg">Datos fiscales y reseñas en Google</h2>
           <p className="mb-4 text-sm text-text-muted">Salen en los recibos de tus viajeros y en el informe anual. Con el enlace de Google, pedimos reseña allí a quien te pone 4 o 5 estrellas.</p>
           <FiscalForm f={fis} />
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">WhatsApp y clientes que repiten</h2>
+          <p className="mb-3 text-sm text-text-muted">Con WhatsApp Business conectado, los mensajes de tus viajeros llegan a Mensajes y contestas desde ahí; las preguntas frecuentes se responden solas con los datos de tus tours.{!whatsappOn() && " La conexión con WhatsApp todavía no está activada en este servidor."}</p>
+          <CommsForm phoneId={comms.whatsappPhoneId} autoReply={comms.whatsappAutoReply} loyalty={comms.loyaltyPercent} />
         </Card>
         <Card>
           <h2 className="mb-1 text-lg">Insignia de guía verificado</h2>

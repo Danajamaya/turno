@@ -158,18 +158,24 @@ export async function reviewByToken(token: string) {
 }
 
 /** One review per booking; the link works once. */
-export async function submitReview(token: string, rating: number, body: string, authorName: string): Promise<void> {
+export async function submitReview(token: string, rating: number, body: string, authorName: string, photos: Uint8Array[] = []): Promise<void> {
   if (!Number.isInteger(rating) || rating < 1 || rating > 5) throw new RuleError("rating", "Elige de 1 a 5 estrellas.");
-  const rows = await system((tx) => tx`update reviews set rating = ${rating}, body = ${body.trim().slice(0, 1500) || null},
-    author_name = ${authorName.trim().slice(0, 60) || null}, submitted_at = now()
-    where token_hash = ${hash(token)} and submitted_at is null returning id`);
-  if (!rows.length) throw new RuleError("used", "Esta reseña ya se envió. ¡Gracias!");
+  const { sniff, MAX_BYTES } = await import("./media");
+  const pics = photos.filter((p) => p.length > 0).slice(0, 3);
+  for (const p of pics) if (p.length > MAX_BYTES || !sniff(p)) throw new RuleError("photo", "Las fotos tienen que ser JPG, PNG o WebP de hasta 2 MB.");
+  await system(async (tx) => {
+    const rows = await tx<{ id: string; companyId: string }[]>`update reviews set rating = ${rating}, body = ${body.trim().slice(0, 1500) || null},
+      author_name = ${authorName.trim().slice(0, 60) || null}, submitted_at = now()
+      where token_hash = ${hash(token)} and submitted_at is null returning id, company_id`;
+    if (!rows.length) throw new RuleError("used", "Esta reseña ya se envió. ¡Gracias!");
+    for (const [i, p] of pics.entries()) await tx`insert into media (company_id, owner_kind, owner_id, content_type, bytes, sort) values (${rows[0].companyId}, 'review', ${rows[0].id}, ${sniff(p)!}, ${Buffer.from(p)}, ${i})`;
+  });
 }
 
 export async function companyReviews(companyId: string, limit = 20) {
   return system(async (tx) => {
-    const list = await tx<{ rating: number; body: string | null; authorName: string | null; submittedAt: string; platform: string; tourName: string | null; reply: string | null }[]>`
-      select r.rating, r.body, r.author_name, r.submitted_at, b.platform, b.tour_name, r.reply from reviews r join bookings b on b.id = r.booking_id
+    const list = await tx<{ id: string; rating: number; body: string | null; authorName: string | null; submittedAt: string; platform: string; tourName: string | null; reply: string | null; photos: string[] }[]>`
+      select r.id, (select coalesce(array_agg(m.id order by m.sort), '{}') from media m where m.owner_kind = 'review' and m.owner_id = r.id) as photos, r.rating, r.body, r.author_name, r.submitted_at, b.platform, b.tour_name, r.reply from reviews r join bookings b on b.id = r.booking_id
       where r.company_id = ${companyId} and r.submitted_at is not null order by r.submitted_at desc limit ${limit}`;
     const [agg] = await tx<{ avg: number | null; count: number }[]>`select round(avg(rating)::numeric, 1)::float as avg, count(*)::int as count
       from reviews where company_id = ${companyId} and submitted_at is not null`;

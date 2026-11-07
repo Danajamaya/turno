@@ -23,6 +23,7 @@ export function ReviewForm({ token, lang, name }: { token: string; lang: Lang; n
           </fieldset>
           <div><label htmlFor="body" className="mb-1 block text-sm font-semibold">{l.comment}</label><textarea id="body" name="body" rows={4} maxLength={1500} className="w-full rounded-md border border-border-input bg-bg px-3 py-2 text-base" /></div>
           <Field label={l.yourName} name="author" defaultValue={name} maxLength={60} />
+          <label className="text-sm font-semibold">{l.reviewPhotos}<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" multiple className="mt-1 block w-full text-sm" /></label>
           <Submit size="lg">{l.send}</Submit>
         </>
       )}

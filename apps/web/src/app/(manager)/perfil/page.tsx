@@ -10,8 +10,13 @@ import { giftCards } from "@/lib/gifts";
 import { PhotoUploader } from "@/components/photo-uploader";
 import { discountCodes } from "@/lib/discounts";
 import { DiscountForm } from "./discount-form";
+import { SeasonForm } from "./season-form";
+import { AiTourCreator } from "./ai-tour";
+import { seasons as listSeasons } from "@/lib/seasons";
+import { deleteSeasonAction } from "@/app/pro-actions";
 import { toggleDiscountAction } from "@/app/pro-actions";
 import { appUrl } from "@/lib/email";
+import { listLocations } from "@/lib/cities";
 import { markGiftPaidAction } from "@/app/growth-actions";
 import { requireSession } from "@/lib/session";
 import { ProfileForm, TourForm } from "./forms";
@@ -23,8 +28,9 @@ const DAYS = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
 export default async function ProfilePage({ searchParams }: { searchParams: Promise<{ editar?: string; nuevo?: string; guardado?: string }> }) {
   const s = await requireSession(["owner", "manager"]);
   const q = await searchParams;
-  const [profile, tours, gifts, codes] = await Promise.all([getProfile(s), listTours(s), giftCards(s), discountCodes(s)]);
+  const [profile, tours, gifts, codes, seasonList] = await Promise.all([getProfile(s), listTours(s), giftCards(s), discountCodes(s), listSeasons(s)]);
   const photos = await photosFor([s.company.id, ...tours.map((t) => t.id)]);
+  const locations = await listLocations(s);
   const editing = q.editar ? tours.find((t) => t.id === q.editar) : undefined;
   const suggested = s.company.name.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
   const price = (t: (typeof tours)[number]) => t.priceModel === "free_tip" ? "A la voluntad" : `${money(t.priceCents, t.currency)} ${t.priceModel === "per_person" ? "por persona" : "por grupo"}`;
@@ -62,6 +68,14 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
                 ))}
               </ul>
             )}
+          </Card>
+          <Card>
+            <h2 className="mb-1 font-serif text-lg">Precios por temporada</h2>
+            <p className="mb-3 text-sm text-text-muted">Sube el precio en temporada alta (Semana Santa, verano) o bájalo en temporada baja. Se aplica a las salidas de esas fechas y se avisa en tu página.</p>
+            {seasonList.length > 0 && <ul className="mb-4 divide-y divide-border text-sm">{seasonList.map((x) => (
+              <li key={x.id} className="flex flex-wrap items-center gap-3 py-2"><span className="min-w-0 flex-1"><b>{x.name}</b> <span className="tnum text-text-muted">{x.startsOn} → {x.endsOn}, {x.percent > 0 ? "+" : ""}{x.percent} %{x.tourId ? `, ${tours.find((t) => t.id === x.tourId)?.title ?? ""}` : ", todos los tours"}</span></span>
+                <form action={deleteSeasonAction}><input type="hidden" name="id" value={x.id} /><Button size="sm" variant="ghost" aria-label={`Borrar ${x.name}`}>Borrar</Button></form></li>))}</ul>}
+            <SeasonForm tours={tours.filter((t) => t.priceModel !== "free_tip").map((t) => ({ id: t.id, title: t.title }))} />
           </Card>
           <Card>
             <h2 className="mb-1 font-serif text-lg">Códigos de descuento y socios</h2>
@@ -105,10 +119,17 @@ export default async function ProfilePage({ searchParams }: { searchParams: Prom
               </ul>
             )}
           </Card>
+          {!editing && (
+            <Card>
+              <h2 className="mb-1 font-serif text-lg">Crear un tour describiéndolo</h2>
+              <p className="mb-3 text-sm text-text-muted">Escribe una frase y te preparamos título, descripción, paradas, duración y un precio orientativo.</p>
+              <AiTourCreator currency={s.company.currency} locations={locations} />
+            </Card>
+          )}
           {(q.nuevo || editing) && (
             <Card>
               <h2 className="mb-4 font-serif text-lg">{editing ? `Editar «${editing.title}»` : "Nuevo tour o paquete"}</h2>
-              <TourForm tour={editing} currency={s.company.currency} />
+              <TourForm tour={editing} currency={s.company.currency} locations={locations} />
             </Card>
           )}
         </div>

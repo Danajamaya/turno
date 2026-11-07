@@ -152,3 +152,57 @@ export async function importCsvAction(_: FormState, f: FormData): Promise<FormSt
     return { ok: `${r.imported} reservas importadas${r.skipped ? `, ${r.skipped} ya estaban` : ""}${r.errors.length ? `. ${r.errors.length} filas con errores: ${r.errors.slice(0, 3).join("; ")}${r.errors.length > 3 ? "…" : ""}` : "."}` };
   } catch (e) { return fail(e); }
 }
+
+// ------------------------------------------------------------- WhatsApp, loyalty, seasons
+
+export async function saveCommsAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner", "manager"]);
+  const phoneId = String(f.get("whatsappPhoneId") ?? "").trim();
+  const loyalty = Math.round(Number(f.get("loyaltyPercent") || 0));
+  if (phoneId && !/^\d{6,20}$/.test(phoneId)) return { error: "El identificador del número de WhatsApp son solo cifras (lo ves en Meta, WhatsApp > Configuración de la API)." };
+  if (!(loyalty >= 0 && loyalty <= 50)) return { error: "El descuento por repetir va de 0 a 50 %." };
+  const { system } = await import("@/lib/db");
+  try {
+    await system((tx) => tx`update companies set whatsapp_phone_id = ${phoneId || null}, whatsapp_auto_reply = ${f.get("autoReply") === "on"}, loyalty_percent = ${loyalty} where id = ${s.company.id}`);
+  } catch (e) { if ((e as { code?: string }).code === "23505") return { error: "Ese número de WhatsApp ya está conectado a otro negocio." }; throw e; }
+  revalidatePath("/settings");
+  return { ok: "Guardado." };
+}
+
+export async function saveSeasonAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner", "manager"]);
+  const tourId = String(f.get("tourId") ?? "");
+  try {
+    await (await import("@/lib/seasons")).saveSeason(s, { tourId: tourId ? uuid.parse(tourId) : null, name: String(f.get("name") ?? ""), startsOn: String(f.get("startsOn") ?? ""),
+      endsOn: String(f.get("endsOn") ?? ""), percent: Math.round(Number(f.get("percent"))) });
+  } catch (e) { return fail(e); }
+  revalidatePath("/perfil");
+  return { ok: "Temporada guardada." };
+}
+
+export async function deleteSeasonAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await (await import("@/lib/seasons")).deleteSeason(s, uuid.parse(String(f.get("id"))));
+  revalidatePath("/perfil");
+}
+
+// ------------------------------------------------------------- training, cities, AI tour drafts
+
+export async function setTrainedAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await (await import("@/lib/training")).setTrained(s, uuid.parse(String(f.get("tourId"))), uuid.parse(String(f.get("memberId"))), f.get("on") === "1");
+  revalidatePath("/pagos");
+}
+
+export async function addCityAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner"]);
+  try { await (await import("@/lib/cities")).addCity(s, String(f.get("name") ?? ""), String(f.get("timezone") ?? "Europe/Madrid")); } catch (e) { return fail(e); }
+  revalidatePath("/ciudades");
+  return { ok: "Ciudad añadida. Ahora asigna tus tours a esa ciudad en Perfil y paquetes." };
+}
+
+export async function draftTourAction(prompt: string) {
+  const s = await requireSession(["owner", "manager"]);
+  try { return { draft: await (await import("@/lib/tour-ai")).draftTour(s, prompt) }; }
+  catch (e) { if (e instanceof RuleError) return { error: e.message }; throw e; }
+}

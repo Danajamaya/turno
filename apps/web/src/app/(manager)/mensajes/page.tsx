@@ -40,6 +40,7 @@ export default async function MessagesPage({ searchParams }: { searchParams: Pro
           {asks.map((a) => (
             <Card key={a.id} className="p-5">
               <p className="mb-3 flex flex-wrap items-center gap-2 text-sm"><b className="mr-auto">{a.name}</b>
+                {a.channel === "whatsapp" && <span className="rounded-pill bg-success-soft px-2.5 py-0.5 text-xs font-semibold text-success">WhatsApp {a.phone ? `+${a.phone}` : ""}</span>}
                 {a.kind === "quote" && <span className="rounded-pill bg-info-soft px-2.5 py-0.5 text-xs font-semibold text-info">Presupuesto: {a.details?.people} personas{a.details?.groupKind ? `, ${a.details.groupKind}` : ""}{a.details?.date ? `, ${a.details.date}` : ""}</span>}
                 <span className={`rounded-pill px-2.5 py-0.5 text-xs font-semibold ${a.status === "open" ? "bg-gold-soft text-gold-ink" : "bg-success-soft text-success"}`}>{a.status === "open" ? "Sin contestar" : "Contestada"}</span>
                 <span className="text-xs uppercase text-text-muted">{a.language}</span></p>

@@ -41,12 +41,12 @@ export async function ask(a: Ask): Promise<void> {
       : `Mandamos tu pregunta a ${companyName}. Te llegará la respuesta por correo.\nSigue la conversación aquí: ${appUrl()}/consulta/${token}\n` });
 }
 
-export interface Inquiry { id: string; name: string; email: string; language: "es" | "en"; status: string; lastMessageAt: string; kind: "question" | "quote"; details: { people: number; date: string | null; groupKind: string } | null; messages: { fromTraveller: boolean; body: string; createdAt: string; memberName: string | null }[] }
+export interface Inquiry { id: string; name: string; email: string; language: "es" | "en"; status: string; lastMessageAt: string; kind: "question" | "quote"; details: { people: number; date: string | null; groupKind: string } | null; channel: "email" | "whatsapp"; phone: string | null; messages: { fromTraveller: boolean; body: string; createdAt: string; memberName: string | null }[] }
 
 async function threadsWhere(companyId: string | null, inquiryId: string | null, tokenHash: string | null, userId: string | null): Promise<(Inquiry & { companyId: string; companyName: string })[]> {
   const q = async (tx: Tx) => {
     const list = await tx<(Omit<Inquiry, "messages"> & { companyId: string; companyName: string })[]>`
-      select i.id, i.name, i.email, i.language, i.status, i.last_message_at, i.kind, i.details, i.company_id, c.name as company_name
+      select i.id, i.name, i.email, i.language, i.status, i.last_message_at, i.kind, i.details, i.channel, i.phone, i.company_id, c.name as company_name
       from inquiries i join companies c on c.id = i.company_id
       where true ${companyId ? tx`and i.company_id = ${companyId}` : tx``} ${inquiryId ? tx`and i.id = ${inquiryId}` : tx``} ${tokenHash ? tx`and i.token_hash = ${tokenHash}` : tx``}
       order by (i.status = 'open') desc, i.last_message_at desc limit 50`;
@@ -83,6 +83,12 @@ export async function reply(s: Session, inquiryId: string, body: string): Promis
     await tx`update inquiries set status = 'answered', last_message_at = now(), token_hash = ${hashToken(token)} where id = ${t.id}`;
   });
   const en = t.language === "en";
+  if (t.channel === "whatsapp" && t.phone) {
+    const [c] = await system((tx) => tx<{ phoneId: string | null }[]>`select whatsapp_phone_id as phone_id from companies where id = ${s.company.id}`);
+    if (!c.phoneId) throw new RuleError("whatsapp_off", "Conecta tu número de WhatsApp Business en Configuración para contestar por WhatsApp.");
+    await (await import("./whatsapp")).sendWhatsApp(c.phoneId, t.phone, text);
+    return;
+  }
   await sendEmail({ to: t.email, subject: en ? `${t.companyName} answered your question` : `${t.companyName} contestó tu pregunta`,
     text: `${text}\n\n— ${s.member.fullName}, ${t.companyName}\n\n${en ? "Reply here" : "Contesta aquí"}: ${appUrl()}/consulta/${token}\n` });
 }
@@ -104,7 +110,7 @@ export async function travellerReply(token: string, body: string): Promise<void>
 
 interface Facts { companyName: string; bio: string; tours: { title: string; durationMin: number; meetingPoint: string | null; priceModel: string; priceCents: number; currency: string; times: string[] }[] }
 
-async function facts(companyId: string): Promise<Facts> {
+export async function facts(companyId: string): Promise<Facts> {
   return system(async (tx) => {
     const [c] = await tx<{ companyName: string; bio: string | null }[]>`select c.name as company_name, gp.bio from companies c left join guide_profiles gp on gp.company_id = c.id where c.id = ${companyId}`;
     const tours = await tx<{ title: string; durationMin: number; meetingPoint: string | null; priceModel: string; priceCents: number; currency: string; weeklySlots: { weekday: number; time: string }[] }[]>`

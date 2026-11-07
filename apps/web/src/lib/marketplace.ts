@@ -9,21 +9,23 @@ import { afterBookingChange } from "./booking-events";
 import { sendEmail } from "./email";
 import { applyDiscount } from "./discounts";
 import { redeemGift } from "./gifts";
+import { seasonPercent, withSeason } from "./seasons";
 import type { Session } from "./types";
 import { RuleError } from "./types";
 
-export interface Profile { companyId: string; slug: string; headline: string; bio: string; city: string; languages: string[]; specialities: string[]; videoUrl: string | null; published: boolean }
+export interface Profile { companyId: string; slug: string; headline: string; bio: string; city: string; languages: string[]; specialities: string[]; videoUrl: string | null; published: boolean; sustainableLocal?: boolean; sustainableNoPlastic?: boolean; sustainablePublicTransport?: boolean }
 export interface Slot { weekday: number; time: string }
 export interface Tour {
   id: string; title: string; description: string | null; meetingPoint: string | null; durationMin: number; capacity: number;
   priceModel: "free_tip" | "per_person" | "per_group"; priceCents: number; currency: string; published: boolean;
   maxPeoplePerBooking: number; weeklySlots: Slot[]; sort: number;
   depositCents?: number; noShowFeeCents?: number; stops?: Stop[]; equipment?: string[];
+  includes?: string[]; script?: string | null; requiresTraining?: boolean; insuranceCents?: number; locationId?: string | null;
 }
 export interface Stop { name: string; lat: number | null; lng: number | null }
 export interface Departure { startsAt: string; date: string; time: string; left: number }
 
-const TOUR = "id, title, description, meeting_point, duration_min, capacity, price_model, price_cents, currency, published, max_people_per_booking, weekly_slots, sort, deposit_cents, no_show_fee_cents, stops, equipment";
+const TOUR = "id, title, description, meeting_point, duration_min, capacity, price_model, price_cents, currency, published, max_people_per_booking, weekly_slots, sort, deposit_cents, no_show_fee_cents, stops, equipment, includes, script, requires_training, insurance_cents, location_id";
 const managerOnly = (s: Session) => { if (s.member.role === "employee") throw new RuleError("forbidden", "Solo un gerente puede hacer esto."); };
 
 // ------------------------------------------------------------- owner side
@@ -43,6 +45,8 @@ export async function saveProfile(s: Session, p: Omit<Profile, "companyId">): Pr
       values (${s.company.id}, ${p.slug}, ${p.headline}, ${p.bio}, ${p.city}, ${p.languages}, ${p.specialities}, ${p.videoUrl}, ${p.published})
       on conflict (company_id) do update set slug = excluded.slug, headline = excluded.headline, bio = excluded.bio, city = excluded.city,
         languages = excluded.languages, specialities = excluded.specialities, video_url = excluded.video_url, published = excluded.published`);
+    if (p.sustainableLocal !== undefined) await withUser(s.userId, (tx) => tx`update guide_profiles set sustainable_local = ${!!p.sustainableLocal},
+      sustainable_no_plastic = ${!!p.sustainableNoPlastic}, sustainable_public_transport = ${!!p.sustainablePublicTransport} where company_id = ${s.company.id}`);
   } catch (e) {
     if ((e as { code?: string }).code === "23505") throw new RuleError("slug_taken", "Esa dirección ya la usa otro negocio. Prueba otra.");
     throw e;
@@ -56,6 +60,19 @@ export async function listTours(s: Session): Promise<Tour[]> {
 export async function saveTour(s: Session, t: Omit<Tour, "id" | "currency" | "sort"> & { id?: string }): Promise<string> {
   const id = await saveTourCore(s, t);
   const extras = { deposit: t.depositCents, fee: t.noShowFeeCents, stops: t.stops, equipment: t.equipment };
+  const more = { includes: t.includes, script: t.script, training: t.requiresTraining, insurance: t.insuranceCents, location: t.locationId };
+  if (Object.values(more).some((v) => v !== undefined)) {
+    if ((t.insuranceCents ?? 0) < 0 || (t.insuranceCents ?? 0) > 5000) throw new RuleError("invalid", "El seguro va de 0 a 50 € por persona.");
+    if (t.locationId) { const [l] = await withUser(s.userId, (tx) => tx`select 1 from locations where id = ${t.locationId!} and company_id = ${s.company.id}`); if (!l) throw new RuleError("not_found", "Esa ciudad no es tuya."); }
+    const includes = (t.includes ?? []).map((x) => x.trim().slice(0, 60)).filter(Boolean).slice(0, 10);
+    await withUser(s.userId, (tx) => tx`update tours set
+      includes = case when ${more.includes !== undefined} then ${includes}::text[] else includes end,
+      script = case when ${more.script !== undefined} then ${t.script?.slice(0, 20000) || null} else script end,
+      requires_training = coalesce(${more.training ?? null}, requires_training),
+      insurance_cents = coalesce(${more.insurance ?? null}, insurance_cents),
+      location_id = coalesce(${more.location ?? null}, location_id)
+      where id = ${id} and company_id = ${s.company.id}`);
+  }
   if (Object.values(extras).some((v) => v !== undefined)) {
     if ((t.depositCents ?? 0) < 0 || (t.noShowFeeCents ?? 0) < 0 || (t.noShowFeeCents ?? 0) > 5000) throw new RuleError("invalid", "Revisa la señal y el cargo por no presentarse (máximo 50 €).");
     const stops = (t.stops ?? []).filter((x) => x.name.trim()).slice(0, 20).map((x) => ({ name: x.name.trim().slice(0, 80), lat: Number.isFinite(x.lat) ? x.lat : null, lng: Number.isFinite(x.lng) ? x.lng : null }));
@@ -100,6 +117,11 @@ export async function deleteTour(s: Session, id: string): Promise<void> {
 
 // ------------------------------------------------------------- public side
 
+/** The sustainable seal: every published tour has small groups (15 or fewer) and the business works with local shops. Pure. */
+export function isSustainable(p: { sustainableLocal?: boolean }, tours: { capacity: number }[]): boolean {
+  return !!p.sustainableLocal && tours.length > 0 && tours.every((t) => t.capacity <= 15);
+}
+
 export async function publicProfile(slug: string) {
   return system(async (tx) => {
     const [p] = await tx<(Profile & { companyName: string; timezone: string; currency: string; verifiedAt: string | null; googleReviewUrl: string | null })[]>`
@@ -111,7 +133,7 @@ export async function publicProfile(slug: string) {
     const [stats] = await tx<{ travellers: number; tours: number }[]>`
       select coalesce(sum(people) filter (where status = 'attended'), 0)::int as travellers, count(distinct starts_at)::int as tours
       from bookings where company_id = ${p.companyId}`;
-    return { ...p, tours, stats };
+    return { ...p, tours, stats, sustainable: isSustainable(p, tours) };
   });
 }
 
@@ -141,7 +163,7 @@ export async function departures(tour: Tour & { companyId?: string }, companyId:
   return list.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
-export interface BookingRequest { slug: string; tourId: string; startsAt: string; people: number; name: string; email: string; phone: string | null; language: string | null; giftCode?: string | null; discountCode?: string | null }
+export interface BookingRequest { slug: string; tourId: string; startsAt: string; people: number; name: string; email: string; phone: string | null; language: string | null; giftCode?: string | null; discountCode?: string | null; insurance?: boolean }
 
 /** A traveller books on Turno. Capacity is re-checked inside the transaction, under a lock. */
 export async function book(r: BookingRequest): Promise<{ code: string; bookingId: string }> {
@@ -161,9 +183,17 @@ export async function book(r: BookingRequest): Promise<{ code: string; bookingId
     const [{ taken }] = await tx<{ taken: number }[]>`select coalesce(sum(people), 0)::int as taken from bookings
       where company_id = ${p.companyId} and status <> 'cancelled' and coalesce(tour_name, '') = ${tour.title} and starts_at = ${dep.startsAt}`;
     if (taken + r.people > tour.capacity) throw new RuleError("full", tour.capacity - taken > 0 ? `Solo quedan ${tour.capacity - taken} plazas.` : "Esa salida ya está completa.");
-    const list = tour.priceModel === "per_person" ? tour.priceCents * r.people : tour.priceModel === "per_group" ? tour.priceCents : 0;
+    const season = await seasonPercent(tx, p.companyId, tour.id, dep.date);
+    const unit = withSeason(tour.priceCents, season);
+    const list = tour.priceModel === "per_person" ? unit * r.people : tour.priceModel === "per_group" ? unit : 0;
     const discount = r.discountCode?.trim() ? await applyDiscount(tx, p.companyId, r.discountCode, list) : null;
-    const gross = list - (discount?.cents ?? 0);
+    // returning traveller (came before, on any platform): loyalty discount when no other code is used
+    const [{ loyaltyPercent }] = await tx<{ loyaltyPercent: number }[]>`select loyalty_percent from companies where id = ${p.companyId}`;
+    const [returning] = loyaltyPercent > 0 && !discount && list > 0 ? await tx`select 1 from bookings b join travellers t on t.id = b.traveller_id
+      where b.company_id = ${p.companyId} and b.status = 'attended' and lower(t.email) = lower(${r.email}) limit 1` : [];
+    const loyalty = returning ? Math.round((list * loyaltyPercent) / 100) : 0;
+    const gross = list - (discount?.cents ?? 0) - loyalty;
+    const insurance = r.insurance && (tour.insuranceCents ?? 0) > 0 ? (tour.insuranceCents ?? 0) * r.people : 0;
     const [{ plan }] = await tx<{ plan: string }[]>`select coalesce((select plan from subscriptions where company_id = ${p.companyId}), 'free') as plan`;
     const [settings] = await tx<{ commissionBpsFree: number; commissionBpsPaid: number; commissionBpsPlus: number }[]>`select commission_bps_free, commission_bps_paid, commission_bps_plus from platform_settings`;
     const [{ reduced }] = await tx<{ reduced: boolean }[]>`select coalesce(reduced_commission_until > now(), false) as reduced from companies where id = ${p.companyId}`;
@@ -180,10 +210,10 @@ export async function book(r: BookingRequest): Promise<{ code: string; bookingId
       on conflict (company_id, lower(email)) where email is not null do update set name = excluded.name, phone = coalesce(excluded.phone, travellers.phone)
       returning id`;
     const [booking] = await tx<{ id: string }[]>`insert into bookings (company_id, channel_id, platform, external_ref, tour_id, tour_name, traveller_id, starts_at, people, status, gross_cents,
-        turno_commission_cents, currency, payment, gift_card_id, gift_cents, discount_code_id, discount_cents, deposit_cents, no_show_fee_cents)
+        turno_commission_cents, currency, payment, gift_card_id, gift_cents, discount_code_id, discount_cents, deposit_cents, no_show_fee_cents, season_percent, loyalty_cents, insurance_cents)
       values (${p.companyId}, ${channel.id}, 'turno', ${code}, ${tour.id}, ${tour.title}, ${traveller.id}, ${dep.startsAt}, ${r.people}, 'confirmed', ${gross},
         ${commission}, ${tour.currency}, ${gross > 0 ? (deposit > 0 ? "online" : "on_site") : "free"}, ${gift?.giftId ?? null}, ${gift?.giftCents ?? 0},
-        ${discount?.id ?? null}, ${discount?.cents ?? 0}, ${Math.max(0, deposit)}, ${noShowFee}) returning id`;
+        ${discount?.id ?? null}, ${discount?.cents ?? 0}, ${Math.max(0, deposit)}, ${noShowFee}, ${season}, ${loyalty}, ${insurance}) returning id`;
     return { tour, dep, gross, gift: gift?.giftCents ?? 0, bookingId: booking.id, companyName: p.companyName, timezone: p.timezone };
   });
   const when = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: result.timezone }).format(new Date(result.dep.startsAt));
@@ -198,8 +228,8 @@ export async function book(r: BookingRequest): Promise<{ code: string; bookingId
 
 export async function bookingByCode(slug: string, code: string) {
   return system(async (tx) => {
-    const [b] = await tx<{ tourName: string; startsAt: string; people: number; grossCents: number; giftCents: number; discountCents: number; depositCents: number; depositPaidAt: string | null; noShowFeeCents: number; companyId: string; currency: string; payment: string; meetingPoint: string | null; companyName: string; timezone: string; status: string }[]>`
-      select b.tour_name, b.starts_at, b.people, b.gross_cents, b.gift_cents, b.discount_cents, b.deposit_cents, b.deposit_paid_at, b.no_show_fee_cents, b.company_id, b.currency, b.payment, b.status, t.meeting_point, c.name as company_name,
+    const [b] = await tx<{ tourName: string; startsAt: string; people: number; grossCents: number; giftCents: number; discountCents: number; loyaltyCents: number; insuranceCents: number; depositCents: number; depositPaidAt: string | null; noShowFeeCents: number; companyId: string; currency: string; payment: string; meetingPoint: string | null; companyName: string; timezone: string; status: string }[]>`
+      select b.tour_name, b.starts_at, b.people, b.gross_cents, b.gift_cents, b.discount_cents, b.loyalty_cents, b.insurance_cents, b.deposit_cents, b.deposit_paid_at, b.no_show_fee_cents, b.company_id, b.currency, b.payment, b.status, t.meeting_point, c.name as company_name,
              (select l.timezone from locations l where l.company_id = c.id order by l.created_at limit 1) as timezone
       from bookings b join guide_profiles gp on gp.company_id = b.company_id join companies c on c.id = b.company_id left join tours t on t.id = b.tour_id
       where gp.slug = ${slug} and b.platform = 'turno' and b.external_ref = ${code}`;
@@ -209,13 +239,13 @@ export async function bookingByCode(slug: string, code: string) {
 
 // ------------------------------------------------------------- search
 
-export interface SearchHit { companyId: string; slug: string; companyName: string; headline: string; city: string; languages: string[]; specialities: string[]; fromCents: number | null; currency: string; hasFree: boolean; rating: number | null; reviews: number; tours: number }
+export interface SearchHit { companyId: string; sustainable: boolean; slug: string; companyName: string; headline: string; city: string; languages: string[]; specialities: string[]; fromCents: number | null; currency: string; hasFree: boolean; rating: number | null; reviews: number; tours: number }
 
 /** Published businesses by city, language, interest and (optionally) a day with a departure. */
-export async function search(q: { city?: string; language?: string; interest?: string; date?: string }): Promise<SearchHit[]> {
+export async function search(q: { city?: string; language?: string; interest?: string; date?: string; sustainable?: string }): Promise<SearchHit[]> {
   const wd = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? weekday(q.date) : null;
   return system((tx) => tx<SearchHit[]>`
-    select gp.company_id, gp.slug, c.name as company_name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency,
+    select gp.company_id, (gp.sustainable_local and not exists (select 1 from tours t4 where t4.company_id = gp.company_id and t4.published and t4.capacity > 15)) as sustainable, gp.slug, c.name as company_name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency,
            min(t.price_cents) filter (where t.price_model <> 'free_tip') as from_cents,
            bool_or(t.price_model = 'free_tip') as has_free, count(distinct t.id)::int as tours,
            (select round(avg(r.rating)::numeric, 1)::float from reviews r where r.company_id = gp.company_id and r.submitted_at is not null) as rating,
@@ -226,7 +256,8 @@ export async function search(q: { city?: string; language?: string; interest?: s
       ${q.language?.trim() ? tx`and exists (select 1 from unnest(gp.languages) l where lower(l) = lower(${q.language.trim()}))` : tx``}
       ${q.interest?.trim() ? tx`and exists (select 1 from unnest(gp.specialities) x where lower(x) = lower(${q.interest.trim()}))` : tx``}
       ${wd !== null ? tx`and exists (select 1 from tours t2, jsonb_array_elements(t2.weekly_slots) sl where t2.company_id = gp.company_id and t2.published and (sl->>'weekday')::int = ${wd})` : tx``}
-    group by gp.company_id, gp.slug, c.name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency
+      ${q.sustainable ? tx`and gp.sustainable_local and not exists (select 1 from tours t3 where t3.company_id = gp.company_id and t3.published and t3.capacity > 15)` : tx``}
+    group by gp.company_id, gp.slug, c.name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency, gp.sustainable_local
     order by rating desc nulls last, tours desc limit 60`);
 }
 
@@ -243,15 +274,15 @@ export async function searchFacets() {
 
 export interface TourHit {
   tourId: string; title: string; description: string | null; durationMin: number; priceModel: Tour["priceModel"]; priceCents: number; currency: string;
-  firstTime: string | null; slug: string; companyName: string; city: string; languages: string[]; specialities: string[]; rating: number | null; reviews: number;
+  firstTime: string | null; slug: string; companyName: string; city: string; languages: string[]; specialities: string[]; rating: number | null; reviews: number; sustainable?: boolean;
 }
 
 /** Published tours, Airbnb-experience style, with the same filters as the guide search. */
-export async function searchTours(q: { city?: string; language?: string; interest?: string; date?: string }): Promise<TourHit[]> {
-  const slugs = (await search(q)).map((h) => h.slug);
+export async function searchTours(q: { city?: string; language?: string; interest?: string; date?: string; sustainable?: string }): Promise<TourHit[]> {
+  const hits = await search(q), slugs = hits.map((h) => h.slug), green = new Set(hits.filter((h) => h.sustainable).map((h) => h.slug));
   if (slugs.length === 0) return [];
   const wd = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? weekday(q.date) : null;
-  return system((tx) => tx<TourHit[]>`
+  const rows = await system((tx) => tx<TourHit[]>`
     select t.id as tour_id, t.title, t.description, t.duration_min, t.price_model, t.price_cents, t.currency,
            (select min(sl->>'time') from jsonb_array_elements(t.weekly_slots) sl ${wd !== null ? tx`where (sl->>'weekday')::int = ${wd}` : tx``}) as first_time,
            gp.slug, c.name as company_name, gp.city, gp.languages, gp.specialities,
@@ -261,4 +292,5 @@ export async function searchTours(q: { city?: string; language?: string; interes
     where t.published and gp.slug = any(${slugs})
       ${wd !== null ? tx`and exists (select 1 from jsonb_array_elements(t.weekly_slots) sl where (sl->>'weekday')::int = ${wd})` : tx``}
     order by array_position(${slugs}::text[], gp.slug), t.sort, t.created_at limit 120`);
+  return rows.map((r) => ({ ...r, sustainable: green.has(r.slug) }));
 }

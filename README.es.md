@@ -59,6 +59,11 @@ Un marketplace y CRM para guías turísticos, sobre la misma base (plan en
   para webs, mapa del recorrido y ubicación del grupo, aviso de lluvia, cambios
   entre guías, API OCTO para GetYourGuide y Viator, importación CSV,
   comparación de plataformas, verificación de guías e invitaciones.
+- **Más:** precios por temporada, paquetes con lo que incluyen, fotos en las
+  reseñas, mensajes de WhatsApp en Mensajes con respuestas automáticas,
+  descuento para quien repite, guion y formación por tour, seguro opcional,
+  tours a partir de una frase, varias ciudades por agencia y sello de turismo
+  sostenible.
 
 Falta lo que necesita tus cuentas: verificación de Google para Gmail, Stripe
 Connect y precios, un número de WhatsApp Business, una clave de Anthropic

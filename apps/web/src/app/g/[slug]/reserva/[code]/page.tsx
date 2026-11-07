@@ -29,6 +29,8 @@ export default async function Confirmed({ params, searchParams }: { params: Prom
           <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.payment}</dt><dd className="text-right font-semibold">{b.payment === "free" ? l.payTip : b.giftCents > 0
             ? <>{l.giftPaid(money(b.giftCents, b.currency))}{b.grossCents > b.giftCents && <span className="block">{l.giftRest(money(b.grossCents - b.giftCents, b.currency))}</span>}</>
             : l.payOnSite(money(b.grossCents, b.currency))}</dd></div>
+          {b.loyaltyCents > 0 && <div className="flex justify-between gap-4"><dt className="text-text-muted">{lang === "en" ? "Returning traveller" : "Descuento por repetir"}</dt><dd className="tnum font-semibold">−{money(b.loyaltyCents, b.currency)}</dd></div>}
+          {b.insuranceCents > 0 && <div className="flex justify-between gap-4"><dt className="text-text-muted">{lang === "en" ? "Travel insurance" : "Seguro de viaje"}</dt><dd className="tnum font-semibold">{money(b.insuranceCents, b.currency)}</dd></div>}
           <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.code}</dt><dd className="tnum font-semibold">{code}</dd></div>
         </dl>
       </Card>

@@ -73,6 +73,10 @@ A marketplace and CRM for tour guides, built on the same core (plan in
   group location, rain alerts, swaps between guides, an OCTO API for
   GetYourGuide and Viator, CSV import, platform comparison, guide verification
   and referrals.
+- **More:** seasonal prices, packages with what they include, review photos,
+  WhatsApp messages in Mensajes with automatic answers, a discount for returning
+  travellers, tour scripts and training, optional insurance, tour drafts from
+  one sentence, several cities per agency, and a sustainable tourism seal.
 
 Still needs your accounts: Google verification for Gmail, Stripe Connect and
 prices, a WhatsApp Business number, an Anthropic key for unknown email
