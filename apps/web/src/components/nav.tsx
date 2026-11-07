@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CalendarRange, ClipboardCheck, Clock, Euro, Home, Inbox, MessagesSquare, Plug, Settings, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, CalendarRange, ClipboardCheck, Clock, Euro, Home, Inbox, MessagesSquare, Plug, Settings, Store, Tag, UserRound, Users, type LucideIcon } from "lucide-react";
 
 // Sidebar in the style of the owner's CRMs: grouped sections, a coloured tile
 // per item, a gold marker on the current page, an unread badge on the chat.
@@ -16,6 +16,7 @@ const managerGroups: { title: string; items: Item[] }[] = [
   { title: "Negocio", items: [
     { href: "/ingresos", label: "Ingresos", icon: Euro, tile: "bg-ch-freetour" },
     { href: "/canales", label: "Plataformas", icon: Plug, tile: "bg-ch-getyourguide" },
+    { href: "/perfil", label: "Perfil y paquetes", icon: Store, tile: "bg-ch-strawberry" },
   ] },
   { title: "Guías", items: [
     { href: "/team", label: "Guías", icon: Users, tile: "bg-ch-civitatis" },
@@ -23,13 +24,17 @@ const managerGroups: { title: string; items: Item[] }[] = [
     { href: "/requests", label: "Solicitudes", icon: Inbox, tile: "bg-ch-strawberry" },
     { href: "/timesheets", label: "Hojas de horas", icon: ClipboardCheck, tile: "bg-ch-guruwalk" },
   ] },
-  { title: "Cuenta", items: [{ href: "/settings", label: "Configuración", icon: Settings, tile: "bg-side-muted" }] },
+  { title: "Cuenta", items: [
+    { href: "/planes", label: "Planes", icon: Tag, tile: "bg-gold" },
+    { href: "/settings", label: "Configuración", icon: Settings, tile: "bg-side-muted" },
+  ] },
 ];
 
 const guideGroups: { title: string; items: Item[] }[] = [
   { title: "Principal", items: [
     { href: "/clock", label: "Mi día", icon: Clock, tile: "bg-gold" },
     { href: "/equipo", label: "Equipo", icon: MessagesSquare, tile: "bg-ch-viator", badge: true },
+    { href: "/account", label: "Cuenta", icon: UserRound, tile: "bg-side-muted" },
   ] },
 ];
 

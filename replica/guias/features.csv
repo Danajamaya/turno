@@ -11,22 +11,23 @@ Idempotent import (no duplicates; cancellations remove),channels,must,yes,yes,Me
 iCal feed import,channels,should,unknown,no,
 OCTO / GetYourGuide / Viator supplier API,channels,should,yes,no,requires connectivity partner certification
 Browser extension (guide's own session),channels,could,no,no,optional; never server-side passwords
-Group list per tour with check-in,operations,must,yes,no,
-Assign guides to tour slots (operators),operations,should,yes,no,reuses Turno schedule
+Group list per tour with check-in,operations,must,yes,yes,"guide app: check in per booking, close with tips split by people"
+Assign guides to tour slots (operators),operations,should,yes,yes,"per tour (all platforms at that time), guide sees only theirs"
 Travellers CRM with history across channels,crm,must,partial,no,
 WhatsApp and email messages with preview,crm,must,partial,no,like Atlas CRM
 Automatic reminders and review requests queue,crm,must,yes,no,daily queue like Atlas
-Public guide profile (video languages specialities reviews),marketplace,must,no,no,Preply pattern
+Public guide profile (video languages specialities reviews),marketplace,must,no,partial,"profile, video, languages, specialities; reviews after first Turno bookings"
 Search guides by city date language interest,marketplace,must,no,no,
-Book and pay on Turno (Stripe Connect payouts),marketplace,must,no,no,EU: DAC7 reporting and VAT on commission
-Free tour reservation without payment,marketplace,must,no,no,tip-based tours are the norm in Spain
-Trial / short tour,marketplace,could,no,no,Preply trial-lesson idea
+Book and pay on Turno (Stripe Connect payouts),marketplace,must,no,partial,booking with price and commission; pay on site until Stripe Connect
+Free tour reservation without payment,marketplace,must,no,yes,
+Trial / short tour,marketplace,could,no,yes,any package can be a short trial tour
 Verified reviews only from real bookings,marketplace,must,no,no,
 Spanish and English interface,platform,must,yes,no,
-Free plan with higher commission and paid plan with lower commission,billing,must,no,no,owner chose both
+Free plan with higher commission and paid plan with lower commission,billing,must,no,yes,"Gratis 18 %, Pro 7 %, Agencia 5 % (placeholders)"
 Earnings per tour and channel,finance,should,yes,partial,per channel per month with platform fees and tips; per tour next
 Guide commissions for operators,finance,should,yes,no,Viamki feature
 Logging into platforms with stored guide passwords,channels,could,no,skip,against platform terms; risk to guides' accounts; liability
 Platform earnings for Turno (subscriptions and commissions),finance,must,n/a,partial,admin page + ledger from Stripe invoices; commissions arrive with marketplace sales
-Customer to sale to booking flow with time and price,marketplace,must,n/a,no,owner's ask 2026-11-07: public booking with price and payment
+Customer to sale to booking flow with time and price,marketplace,must,n/a,yes,public page → departure → booking with price → calendar → income
 "Team chat (Equipo): channels, direct messages, tour cards",team,must,n/a,partial,owner's ask; polling every 4 s; push notifications and files next
+"Calendar sync (Google, Apple, Outlook)",channels,must,n/a,yes,"private .ics per person; managers all tours, guides their own; revocable"

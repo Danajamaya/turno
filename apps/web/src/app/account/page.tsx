@@ -3,6 +3,8 @@ import Link from "next/link";
 import { signOutEverywhereAction } from "@/app/actions";
 import { Button, Card } from "@/components/ui";
 import { requireSession } from "@/lib/session";
+import { CalendarSync } from "@/components/calendar-sync";
+import { hasFeed } from "@/lib/feeds";
 import { DeleteAccountForm } from "../(manager)/settings/delete-account-form";
 
 export const metadata: Metadata = { title: "Mi cuenta" };
@@ -20,6 +22,11 @@ export default async function AccountPage() {
           <Button variant="secondary">Cerrar sesión en todos los dispositivos</Button>
         </form>
         <DeleteAccountForm isOwner={s.member.role === "owner"} />
+      </Card>
+      <Card>
+        <h2 className="mb-1 text-lg">Tus tours en tu calendario</h2>
+        <p className="mb-4 text-sm text-text-muted">Los tours que te asignan aparecen solos en Google Calendar, Apple u Outlook.</p>
+        <CalendarSync has={await hasFeed(s)} />
       </Card>
     </main>
   );

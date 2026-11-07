@@ -6,6 +6,8 @@ import { Card, EmptyState } from "@/components/ui";
 import { dayLabel, hm } from "@/lib/format";
 import { requireSession } from "@/lib/session";
 import { myPublishedShifts, openCard } from "@/lib/store";
+import { myTours } from "@/lib/guide-app";
+import { ChannelBadge } from "@/components/channel";
 import { ClockPanel } from "./clock-panel";
 
 export const metadata: Metadata = { title: "Checar" };
@@ -18,7 +20,7 @@ export default async function ClockPage() {
   const today = localDate(new Date(), tz);
   const { start } = localRange(today, 1, tz);
   const { end } = localRange(today, 14, tz);
-  const [card, shifts] = await Promise.all([openCard(s), myPublishedShifts(s, start, end)]);
+  const [card, shifts, tours] = await Promise.all([openCard(s), myPublishedShifts(s, start, end), myTours(s, start, localRange(today, 1, tz).end)]);
   const todays = shifts.filter((x) => localDate(new Date(x.startAt), tz) === today);
   const first = s.member.fullName.split(" ")[0];
 
@@ -41,6 +43,21 @@ export default async function ClockPage() {
         </p>
         <ClockPanel clockedInAt={card?.clockInAt ?? null} tz={tz} />
       </Card>
+
+      {tours.length > 0 && (
+        <Card>
+          <h2 className="mb-3 text-lg">Mis tours de hoy</h2>
+          <ul className="divide-y divide-border">
+            {tours.map((t) => (
+              <li key={t.key}><Link href={`/clock/tour?k=${encodeURIComponent(t.key)}`} className="flex items-center gap-3 py-3 text-sm">
+                <span className="tnum w-12 font-bold">{hm(t.startsAt, tz)}</span>
+                <span className="min-w-0 flex-1"><span className="block truncate font-semibold">{t.tourName}</span><span className="flex flex-wrap gap-2">{t.platforms.map((p) => <ChannelBadge key={p} platform={p} />)}</span></span>
+                <span className="tnum font-bold">{t.people}</span><span className="text-accent">Pasar lista ›</span>
+              </Link></li>
+            ))}
+          </ul>
+        </Card>
+      )}
 
       <Card>
         <h2 className="mb-3 text-lg">Mis próximos turnos</h2>

@@ -48,3 +48,18 @@ tests on Postgres (7 new for guides: idempotent import, early cancellation,
 review queue, tenant isolation, net income with platform fees and tips,
 admin-only earnings, Stripe invoice retry), `next build`, and
 `e2e/guides.mjs` in Chromium.
+
+## Design, chat, guide app, sync, marketplace (2026-11-07)
+
+| area | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| redesign (owner's CRM style) + Inicio | done | dark mode | month KPIs compared a partial month with a whole one; now same days of last month |
+| Equipo (team chat) | done | push, files, AI agent | RLS select policy could not see a row being inserted (INSERT … RETURNING); team channels checked inline |
+| guide app | done | offline queue, native app | "closed" showed as soon as everyone was checked in; closing now means recording tips |
+| calendar sync (.ics) | done | | lines folded at 75 octets per RFC 5545 |
+| profile, packages, public booking | done | Stripe Connect online payment, reviews | the Agencia plan was charged Pro's commission; own commission column added |
+| Planes | done | real Stripe prices | |
+
+Verified: 20 core + 26 integration tests (guide app, feeds, marketplace incl.
+a two-traveller race for the last places), `next build`, and e2e/slice,
+e2e/guides, e2e/chat, e2e/finish in Chromium.

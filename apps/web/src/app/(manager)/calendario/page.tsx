@@ -8,6 +8,9 @@ import { PLATFORMS } from "@/lib/guides";
 import { Badge, Button, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
 import { dayLabel, hm, money, rangeLabel } from "@/lib/format";
 import { calendar } from "@/lib/guides";
+import { tourGroups } from "@/lib/guide-app";
+import { listMembers } from "@/lib/store";
+import { assignGuideAction } from "@/app/actions";
 import { requireSession } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Calendario" };
@@ -24,7 +27,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const week = weekStartOf(q.semana && /^\d{4}-\d{2}-\d{2}$/.test(q.semana) ? q.semana : today, s.location.weekStartDay);
   const days = weekDays(week);
   const { start, end } = localRange(week, 7, tz);
-  const list = await calendar(s, start, end);
+  const [list, groups, people] = await Promise.all([calendar(s, start, end), tourGroups(s, start, end), listMembers(s)]);
   const live = list.filter((b) => b.status !== "cancelled");
   return (
     <>
@@ -34,6 +37,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <span className="tnum min-w-36 text-center text-sm font-semibold">{rangeLabel(days[0], days[6])}</span>
           <ButtonLink href={`/calendario?semana=${addLocalDays(week, 7)}`} variant="ghost" size="sm" aria-label="Semana siguiente"><ChevronRight aria-hidden size={18} /></ButtonLink>
         </div>
+        <ButtonLink href="/calendario/sincronizar" variant="secondary">Sincronizar con mi calendario</ButtonLink>
         <ButtonLink href="/canales" variant="secondary">Conectar plataformas</ButtonLink>
       </PageHeader>
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
@@ -44,6 +48,30 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         const [hh, mm] = localTime(new Date(), tz).split(":").map(Number);
         return <div className="mb-6"><WeekGrid days={days} list={list} tz={tz} today={today} nowHours={hh + mm / 60} /></div>;
       })()}
+      {groups.length > 0 && (
+        <Card className="mb-6 p-5">
+          <h2 className="font-serif text-lg">Guía de cada tour</h2>
+          <p className="mb-3 text-sm text-text-muted">El guía asignado ve el tour en su teléfono, pasa lista y lo cierra con las propinas.</p>
+          <ul className="divide-y divide-border">
+            {groups.map((g) => (
+              <li key={g.key} className="flex flex-wrap items-center gap-3 py-2.5 text-sm">
+                <span className="tnum w-28 text-text-muted">{dayLabel(localDate(new Date(g.startsAt), tz))} · {hm(g.startsAt, tz)}</span>
+                <span className="min-w-0 flex-1 truncate font-semibold">{g.tourName}</span>
+                <span className="tnum text-text-muted">{g.people} p.</span>
+                <form action={assignGuideAction} className="flex items-center gap-2">
+                  <input type="hidden" name="key" value={g.key} />
+                  <label className="sr-only" htmlFor={`g-${g.key}`}>Guía de {g.tourName}</label>
+                  <select id={`g-${g.key}`} name="memberId" defaultValue={g.guideMemberId ?? ""} className="h-9 rounded-md border border-border-input bg-bg px-2 text-sm">
+                    <option value="">Sin guía</option>
+                    {people.map((p) => <option key={p.id} value={p.id}>{p.fullName}</option>)}
+                  </select>
+                  <Button size="sm" variant="secondary">Asignar</Button>
+                </form>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
       {list.length > 0 && <h2 className="mb-3 font-serif text-lg">Detalle de la semana</h2>}
       {list.length === 0 ? (
         <Card><EmptyState title="No hay reservas esta semana" body="Conecta tus plataformas y las reservas de GuruWalk, Freetour, Strawberry, GetYourGuide, Viator y Civitatis aparecen aquí solas." action={<ButtonLink href="/canales" variant="primary">Conectar plataformas</ButtonLink>} /></Card>
