@@ -69,10 +69,11 @@ await owner.getByRole("button", { name: "Guardar tour" }).click();
 await owner.waitForURL("**/perfil?guardado=1");
 const visitor = await open(1440, 900, "en-GB");
 await visitor.goto(`${base}/guias?city=malaga`);
-await visitor.getByRole("heading", { name: "Find your guide" }).waitFor();
-await visitor.getByText(`Málaga Viva ${stamp}`).waitFor();
+await visitor.getByRole("heading", { name: "Tours in Málaga" }).waitFor();
+await visitor.getByRole("heading", { name: "Málaga histórica" }).waitFor(); // the tour card
+await visitor.getByRole("link", { name: new RegExp(`Málaga Viva ${stamp}`) }).last().waitFor(); // the guide card
 await visitor.screenshot({ path: `${out}/SEARCH-desktop.png`, fullPage: true });
-await visitor.getByText(`Málaga Viva ${stamp}`).click();
+await visitor.getByRole("link", { name: new RegExp(`Málaga Viva ${stamp}`) }).last().click();
 await visitor.getByText("Elena knows every corner of Málaga. Brilliant!").waitFor();
 await visitor.getByText("Verified booking").first().waitFor();
 await visitor.screenshot({ path: `${out}/PROFILE-en.png`, fullPage: true });

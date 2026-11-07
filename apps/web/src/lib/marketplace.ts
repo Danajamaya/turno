@@ -202,3 +202,25 @@ export async function searchFacets() {
     return f;
   });
 }
+
+export interface TourHit {
+  tourId: string; title: string; description: string | null; durationMin: number; priceModel: Tour["priceModel"]; priceCents: number; currency: string;
+  firstTime: string | null; slug: string; companyName: string; city: string; languages: string[]; specialities: string[]; rating: number | null; reviews: number;
+}
+
+/** Published tours, Airbnb-experience style, with the same filters as the guide search. */
+export async function searchTours(q: { city?: string; language?: string; interest?: string; date?: string }): Promise<TourHit[]> {
+  const slugs = (await search(q)).map((h) => h.slug);
+  if (slugs.length === 0) return [];
+  const wd = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? weekday(q.date) : null;
+  return system((tx) => tx<TourHit[]>`
+    select t.id as tour_id, t.title, t.description, t.duration_min, t.price_model, t.price_cents, t.currency,
+           (select min(sl->>'time') from jsonb_array_elements(t.weekly_slots) sl ${wd !== null ? tx`where (sl->>'weekday')::int = ${wd}` : tx``}) as first_time,
+           gp.slug, c.name as company_name, gp.city, gp.languages, gp.specialities,
+           (select round(avg(r.rating)::numeric, 1)::float from reviews r where r.company_id = gp.company_id and r.submitted_at is not null) as rating,
+           (select count(*)::int from reviews r where r.company_id = gp.company_id and r.submitted_at is not null) as reviews
+    from tours t join guide_profiles gp on gp.company_id = t.company_id join companies c on c.id = t.company_id
+    where t.published and gp.slug = any(${slugs})
+      ${wd !== null ? tx`and exists (select 1 from jsonb_array_elements(t.weekly_slots) sl where (sl->>'weekday')::int = ${wd})` : tx``}
+    order by array_position(${slugs}::text[], gp.slug), t.sort, t.created_at limit 120`);
+}

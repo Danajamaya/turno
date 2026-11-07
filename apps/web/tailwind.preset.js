@@ -128,6 +128,13 @@ module.exports = {
           "lineHeight": "var(--leading-kiosk-clock)",
           "fontWeight": "var(--weight-kiosk-clock)"
         }
+      ],
+      "hero": [
+        "var(--text-hero)",
+        {
+          "lineHeight": "var(--leading-hero)",
+          "fontWeight": "var(--weight-hero)"
+        }
       ]
     },
     "borderRadius": {

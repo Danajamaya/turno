@@ -53,27 +53,72 @@ export function LineChart({ labels, values, format, label }: { labels: string[];
   );
 }
 
-/** Horizontal bars, 24px max, rounded data end, value at the tip; colour only with a printed name. */
+/** Horizontal bars in HTML, so labels stay readable at phone width; rounded data end, value at the tip, colour only next to a printed name. */
 export function BarList({ rows, format, label, col }: { rows: { label: string; value: number; colour?: string }[]; format: (v: number) => string; label: string; col: string }) {
-  const W = 640, rowH = 36, Lft = 150, R = 100, H = rows.length * rowH + 6;
   const max = niceMax(Math.max(...rows.map((r) => r.value), 1) * 1.05);
   return (
     <div>
+      <ul className="grid gap-2.5" aria-label={label}>
+        {rows.map((r, i) => (
+          <li key={r.label} className="grid grid-cols-[minmax(0,8rem)_1fr] items-center gap-3 text-sm" title={`${r.label}: ${format(r.value)}`}>
+            <span className="flex items-center gap-2 truncate text-text-muted">{r.colour && <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-sm" style={{ background: `var(--color-${r.colour})` }} />}{r.label}</span>
+            <span className="flex items-center gap-2">
+              <span className="anim-grow-x h-5 rounded-r-sm" style={{ width: `${Math.max(2, (Math.max(0, r.value) / max) * 80)}%`, background: `var(--color-${r.colour ?? "ch-viator"})`, animationDelay: `${i * 60}ms` }} />
+              <b className="tnum shrink-0">{format(r.value)}</b>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <TableView rows={rows.map((r) => [r.label, format(r.value)])} cols={[col, label]} />
+    </div>
+  );
+}
+
+/** Weekly columns stacked by series (e.g. platforms), 2px gaps between segments, rounded top, total above. */
+export function StackedColumns({ labels, series, format, label, col }: {
+  labels: string[]; series: { name: string; colour: string; values: number[] }[]; format: (v: number) => string; label: string; col: string;
+}) {
+  const W = 640, H = 240, L = 40, R = 8, T = 22, B = 28;
+  const totals = labels.map((_, i) => series.reduce((n, s) => n + s.values[i], 0));
+  const max = niceMax(Math.max(...totals, 1) * 1.08);
+  const band = (W - L - R) / labels.length, bw = Math.min(30, band * 0.62);
+  const y = (v: number) => T + (H - T - B) * (1 - v / max);
+  const ticks = [0, max / 2, max];
+  const last = labels.length - 1;
+  return (
+    <div>
+      <ul className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted" aria-hidden>
+        {series.map((s) => <li key={s.name} className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-sm" style={{ background: `var(--color-${s.colour})` }} />{s.name}</li>)}
+      </ul>
       <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={label} className="block h-auto w-full overflow-visible">
-        {rows.map((r, i) => {
-          const w = Math.max(4, ((W - Lft - R) * Math.max(0, r.value)) / max), yy = i * rowH + 6, c = r.colour ? `var(--color-${r.colour})` : "var(--color-ch-viator)";
+        {ticks.map((t) => (
+          <g key={t}>
+            <line x1={L} x2={W - R} y1={y(t)} y2={y(t)} stroke="var(--color-border)" strokeWidth={1} />
+            <text x={L - 8} y={y(t) + 4} textAnchor="end" fontSize={11} fill="var(--color-text-muted)">{Math.round(t).toLocaleString("es-ES")}</text>
+          </g>
+        ))}
+        {labels.map((lab, i) => {
+          const cx = L + band * i + band / 2;
+          let acc = 0;
+          const segs = series.map((s) => ({ s, v: s.values[i] })).filter((x) => x.v > 0);
           return (
-            <g key={r.label}>
-              <title>{`${r.label}: ${format(r.value)}`}</title>
-              {r.colour && <rect x={0} y={yy + 6} width={10} height={10} rx={3} fill={c} />}
-              <text x={r.colour ? 16 : 0} y={yy + 16} fontSize={15} fill="var(--color-text-muted)">{r.label}</text>
-              <path d={`M${Lft},${yy} h${w - 4} a4,4 0 0 1 4,4 v14 a4,4 0 0 1 -4,4 h-${w - 4} z`} fill={c} />
-              <text x={Lft + w + 8} y={yy + 16} fontSize={15} fontWeight={600} fill="var(--color-text)">{format(r.value)}</text>
+            <g key={lab} className="anim-grow-y" style={{ animationDelay: `${i * 45}ms` }}>
+              <title>{`${lab}: ${format(totals[i])}\n${segs.map((x) => `${x.s.name}: ${format(x.v)}`).join("\n")}`}</title>
+              {segs.map((x, j) => {
+                const y0 = y(acc), y1 = y(acc + x.v); acc += x.v;
+                const top = j === segs.length - 1, h = Math.max(0, y0 - y1 - (top ? 0 : 2));
+                return top
+                  ? <path key={x.s.name} d={`M${cx - bw / 2},${y0} V${y1 + 4} a4,4 0 0 1 4,-4 h${bw - 8} a4,4 0 0 1 4,4 V${y0} Z`} fill={`var(--color-${x.s.colour})`} />
+                  : <rect key={x.s.name} x={cx - bw / 2} y={y0 - h} width={bw} height={h} fill={`var(--color-${x.s.colour})`} />;
+              })}
+              <rect x={cx - band / 2} y={T} width={band} height={H - T - B} fill="transparent" />
+              {(i === last || totals[i] === Math.max(...totals)) && totals[i] > 0 && <text x={cx} y={y(totals[i]) - 6} textAnchor="middle" fontSize={12} fontWeight={700} fill="var(--color-text)">{format(totals[i])}</text>}
+              {(i % 2 === 0 || i === last) && <text x={cx} y={H - 8} textAnchor="middle" fontSize={11} fill="var(--color-text-muted)">{lab}</text>}
             </g>
           );
         })}
       </svg>
-      <TableView rows={rows.map((r) => [r.label, format(r.value)])} cols={[col, label]} />
+      <TableView rows={labels.map((l, i) => [l, `${format(totals[i])} (${series.filter((s) => s.values[i] > 0).map((s) => `${s.name} ${format(s.values[i])}`).join(", ")})`])} cols={[col, label]} />
     </div>
   );
 }

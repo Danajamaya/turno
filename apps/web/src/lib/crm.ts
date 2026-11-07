@@ -171,7 +171,10 @@ export async function companyReviews(companyId: string, limit = 20) {
       where r.company_id = ${companyId} and r.submitted_at is not null order by r.submitted_at desc limit ${limit}`;
     const [agg] = await tx<{ avg: number | null; count: number }[]>`select round(avg(rating)::numeric, 1)::float as avg, count(*)::int as count
       from reviews where company_id = ${companyId} and submitted_at is not null`;
-    return { list, avg: agg.avg, count: agg.count };
+    const rows = await tx<{ rating: number; n: number }[]>`select rating, count(*)::int as n from reviews
+      where company_id = ${companyId} and submitted_at is not null group by rating`;
+    const dist = [5, 4, 3, 2, 1].map((r) => ({ rating: r, count: rows.find((x) => x.rating === r)?.n ?? 0 }));
+    return { list, avg: agg.avg, count: agg.count, dist };
   });
 }
 

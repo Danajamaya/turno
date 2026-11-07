@@ -9,6 +9,7 @@ import { localeOf, t, type Lang } from "@/lib/i18n-dict";
 // Pick a departure (by day, then time), say how many and who: done.
 export function BookingForm({ slug, tour, departures, tz, lang }: { slug: string; tour: { id: string; maxPeople: number }; departures: Departure[]; tz: string; lang: Lang }) {
   const [pick, setPick] = useState<string>("");
+  const [all, setAll] = useState(false);
   const l = t(lang);
   if (departures.length === 0) return <p className="mt-4 text-sm text-text-muted">{l.none}</p>;
   const day = (iso: string) => new Intl.DateTimeFormat(localeOf(lang), { weekday: "short", day: "numeric", month: "short", timeZone: tz }).format(new Date(iso));
@@ -17,13 +18,14 @@ export function BookingForm({ slug, tour, departures, tz, lang }: { slug: string
     <div className="mt-4 border-t border-border pt-4">
       <p className="mb-2 text-sm font-semibold">{l.pick}</p>
       <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={l.pick}>
-        {departures.slice(0, 16).map((d) => (
+        {departures.slice(0, all ? 16 : 6).map((d) => (
           <button key={d.startsAt} type="button" role="radio" aria-checked={pick === d.startsAt} disabled={d.left === 0} onClick={() => setPick(d.startsAt)}
-            className={`tnum rounded-md border px-3 py-2 text-left text-sm disabled:opacity-40 ${pick === d.startsAt ? "border-accent bg-accent-soft text-accent" : "border-border-input bg-bg hover:bg-surface"}`}>
+            className={`tnum rounded-md border px-3 py-2 text-left text-sm transition-colors duration-fast disabled:opacity-40 ${pick === d.startsAt ? "border-text bg-text text-bg" : "border-border-input bg-bg hover:border-text"}`}>
             <span className="block font-semibold first-letter:uppercase">{day(d.startsAt)} · {d.time}</span>
-            <span className="block text-xs text-text-muted">{d.left === 0 ? l.full : d.left <= 5 ? l.left(d.left) : l.free}</span>
+            <span className={`block text-xs ${pick === d.startsAt ? "opacity-80" : "text-text-muted"}`}>{d.left === 0 ? l.full : d.left <= 5 ? l.left(d.left) : l.free}</span>
           </button>
         ))}
+        {!all && departures.length > 6 && <button type="button" onClick={() => setAll(true)} className="rounded-md px-3 py-2 text-sm font-semibold underline">{l.more(Math.min(16, departures.length) - 6)}</button>}
       </div>
       {chosen && (
         <ActionForm action={bookAction} className="mt-4 grid gap-3 sm:grid-cols-2">

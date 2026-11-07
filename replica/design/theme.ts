@@ -99,6 +99,11 @@ export const theme = {
       "fontSize": 72,
       "lineHeight": 80,
       "fontWeight": "700"
+    },
+    "hero": {
+      "fontSize": 52,
+      "lineHeight": 56,
+      "fontWeight": "700"
     }
   },
   "space": [
