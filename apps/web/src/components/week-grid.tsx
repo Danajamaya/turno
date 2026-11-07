@@ -36,7 +36,7 @@ export function WeekGrid({ days, list, tz, today, nowHours, durationH = 1.5 }: {
   const label = (d: string) => { const [y, m, dd] = d.split("-").map(Number); return new Intl.DateTimeFormat("es-ES", { weekday: "short", day: "numeric", timeZone: "UTC" }).format(new Date(Date.UTC(y, m - 1, dd))); };
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-border bg-surface-raised shadow-card">
+    <div tabIndex={0} role="region" aria-label="Semana de tours (desplázate de lado en pantallas pequeñas)" className="overflow-x-auto rounded-lg border border-border bg-surface-raised shadow-card">
       <div className="grid min-w-[880px]" style={{ gridTemplateColumns: `52px repeat(7, minmax(110px, 1fr))` }}>
         <div className="border-b border-border" />
         {columns.map((c) => (
@@ -50,7 +50,7 @@ export function WeekGrid({ days, list, tz, today, nowHours, durationH = 1.5 }: {
         {columns.map((c) => (
           <div key={c.d} className={`relative border-l border-border ${c.d === today ? "bg-accent-soft" : ""}`} style={{ height, backgroundImage: `repeating-linear-gradient(to bottom, transparent 0 ${PX - 1}px, var(--color-border) ${PX - 1}px ${PX}px)` }}>
             {c.d === today && nowHours > H0 && nowHours < H1 && (
-              <div className="absolute inset-x-0 z-[1] border-t-2 border-danger" style={{ top: (nowHours - H0) * PX }} aria-label="Ahora"><span className="absolute -left-1 -top-[6px] h-2.5 w-2.5 rounded-pill bg-danger" /></div>
+              <div className="absolute inset-x-0 z-[1] border-t-2 border-danger" style={{ top: (nowHours - H0) * PX }} role="img" aria-label="Ahora"><span className="absolute -left-1 -top-[6px] h-2.5 w-2.5 rounded-pill bg-danger" /></div>
             )}
             {c.blocks.map((b) => {
               const main = b.platforms[0];
@@ -61,7 +61,7 @@ export function WeekGrid({ days, list, tz, today, nowHours, durationH = 1.5 }: {
                   <b className="tnum block">{localTimeLabel(b.start)}</b>
                   <span className="block truncate font-semibold">{b.tour}</span>
                   <span className="tnum block text-text-muted">{b.people} p.</span>
-                  <span className="mt-1 flex flex-wrap gap-1">{b.platforms.map((p) => <span key={p} aria-label={platformName[p]} className={`h-2 w-2 rounded-sm bg-${channelColour(p)}`} />)}</span>
+                  <span className="mt-1 flex flex-wrap gap-1">{b.platforms.map((p) => <span key={p} role="img" aria-label={platformName[p]} title={platformName[p]} className={`h-2 w-2 rounded-sm bg-${channelColour(p)}`} />)}</span>
                 </div>
               );
             })}

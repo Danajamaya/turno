@@ -38,7 +38,8 @@ export default async function IncomePage({ searchParams }: { searchParams: Promi
             <Kpi label="Propinas" value={moneyWhole(total.tipsCents, cur)} note="anotadas al cerrar cada tour" edge="border-t-ch-guruwalk" />
             <Kpi label="Pagaste a plataformas" value={moneyWhole(total.platformFeeCents + total.turnoCommissionCents, cur)} note="lo que se quedaron ellas" edge="border-t-ch-getyourguide" />
           </div>
-          <Card className="overflow-x-auto">
+          <Card>
+            <div tabIndex={0} role="region" aria-label="Ingresos por plataforma" className="overflow-x-auto">
             <table className="tnum w-full min-w-[640px] text-left text-sm">
               <thead className="text-xs text-text-muted"><tr className="border-b border-border">
                 <th scope="col" className="py-2 font-semibold">Plataforma</th><th scope="col" className="py-2 font-semibold">Reservas</th><th scope="col" className="py-2 font-semibold">Personas</th>
@@ -54,6 +55,7 @@ export default async function IncomePage({ searchParams }: { searchParams: Promi
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
           <p className="text-xs text-text-muted">Las propinas las anotas al cerrar cada tour en el Calendario. Lo que cobra cada plataforma por persona se ajusta en Plataformas.</p>
         </div>

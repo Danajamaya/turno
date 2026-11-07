@@ -62,7 +62,7 @@ export function Thread({ me, channel, initial, tours, tz }: {
           {channel.topic && <p className="truncate text-xs text-text-muted">{channel.topic}</p>}
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto px-5 py-4" aria-live="polite">
+      <div tabIndex={0} role="log" aria-label={`Historial de ${channel.name}`} className="flex-1 overflow-y-auto px-5 py-4" aria-live="polite">
         {list.length === 0 && <p className="py-10 text-center text-sm text-text-muted">Todavía no hay mensajes. Escribe el primero.</p>}
         <ol className="grid gap-4">
           {list.map((m) => {
