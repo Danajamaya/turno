@@ -13,16 +13,16 @@ OCTO / GetYourGuide / Viator supplier API,channels,should,yes,no,requires connec
 Browser extension (guide's own session),channels,could,no,no,optional; never server-side passwords
 Group list per tour with check-in,operations,must,yes,yes,"guide app: check in per booking, close with tips split by people"
 Assign guides to tour slots (operators),operations,should,yes,yes,"per tour (all platforms at that time), guide sees only theirs"
-Travellers CRM with history across channels,crm,must,partial,no,
-WhatsApp and email messages with preview,crm,must,partial,no,like Atlas CRM
-Automatic reminders and review requests queue,crm,must,yes,no,daily queue like Atlas
-Public guide profile (video languages specialities reviews),marketplace,must,no,partial,"profile, video, languages, specialities; reviews after first Turno bookings"
-Search guides by city date language interest,marketplace,must,no,no,
+Travellers CRM with history across channels,crm,must,partial,yes,"one contact per email/phone across channels; bookings, messages, review per traveller"
+WhatsApp and email messages with preview,crm,must,partial,partial,"preview, email sent by Turno, WhatsApp opens the guide's own app (wa.me); WhatsApp Business API next"
+Automatic reminders and review requests queue,crm,must,yes,yes,"daily queue: reminder the day before, review request the day after, in the traveller's language; approve or skip"
+Public guide profile (video languages specialities reviews),marketplace,must,no,partial,"profile, video, languages, specialities and verified reviews"
+Search guides by city date language interest,marketplace,must,no,partial,"city (accents ignored), language, speciality; date filter next"
 Book and pay on Turno (Stripe Connect payouts),marketplace,must,no,partial,booking with price and commission; pay on site until Stripe Connect
 Free tour reservation without payment,marketplace,must,no,yes,
 Trial / short tour,marketplace,could,no,yes,any package can be a short trial tour
-Verified reviews only from real bookings,marketplace,must,no,no,
-Spanish and English interface,platform,must,yes,no,
+Verified reviews only from real bookings,marketplace,must,no,yes,"private link per booking, one review each, shown on the public profile"
+Spanish and English interface,platform,must,yes,partial,"public pages (search, profile, booking, review) in es/en; guide CRM in Spanish"
 Free plan with higher commission and paid plan with lower commission,billing,must,no,yes,"Gratis 18 %, Pro 7 %, Agencia 5 % (placeholders)"
 Earnings per tour and channel,finance,should,yes,partial,per channel per month with platform fees and tips; per tour next
 Guide commissions for operators,finance,should,yes,no,Viamki feature

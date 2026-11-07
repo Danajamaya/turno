@@ -30,18 +30,19 @@ await diego.getByText(stamp).waitFor({ timeout: 10_000 }); // arrives by polling
 step("message delivered to the guide's phone without reloading");
 
 await lucia.getByLabel("Adjuntar tour").selectOption({ index: 1 });
-await lucia.getByLabel("Mensaje").fill("Este va lleno, llevad bandera");
+await lucia.getByLabel("Mensaje").fill(`Este va lleno, llevad bandera ${stamp}`);
 await lucia.getByRole("button", { name: "Enviar" }).click();
-await diego.getByText("Este va lleno, llevad bandera").waitFor({ timeout: 10_000 });
+await diego.getByText(`Este va lleno, llevad bandera ${stamp}`).last().waitFor({ timeout: 10_000 });
 step("tour card shared");
 
-await diego.getByRole("button", { name: /Sara/ }).click();
+// first run: a "start a conversation" button; later runs: the existing direct message link
+await diego.getByRole("button", { name: /Sara/ }).or(diego.getByRole("link", { name: /Sara/ })).first().click();
 await diego.waitForURL(/\/equipo\?c=/);
-await diego.getByLabel("Mensaje").fill("¿Me cubres el Prado del martes?");
+await diego.getByLabel("Mensaje").fill(`¿Me cubres el Prado del martes? ${stamp}`);
 await diego.keyboard.press("Enter");
-await diego.getByText("¿Me cubres el Prado del martes?").waitFor();
+await diego.getByText(`¿Me cubres el Prado del martes? ${stamp}`).waitFor();
 await lucia.reload();
-if (await lucia.getByText("¿Me cubres el Prado del martes?").count()) errors.push("manager can see a direct message between two guides");
+if (await lucia.getByText(`¿Me cubres el Prado del martes? ${stamp}`).count()) errors.push("manager can see a direct message between two guides");
 step("direct message, invisible to the manager");
 
 if (await diego.evaluate(() => document.documentElement.scrollWidth > innerWidth)) errors.push("chat scrolls sideways at 390px");

@@ -45,6 +45,30 @@ cd apps/web && NODE_PATH="$(npm root -g)" node e2e/slice.mjs http://localhost:31
 Design tokens live in `replica/design/tokens.json`; after editing run
 `pnpm tokens` to regenerate the CSS and Tailwind preset.
 
+## Turno Guías
+
+A marketplace and CRM for tour guides, built on the same core (plan in
+`replica/guias/`):
+
+- **Channels:** each business gets a forwarding address; booking emails from
+  GuruWalk, Freetour.com, Strawberry Tours, GetYourGuide, Viator and
+  Civitatis land in one calendar, with a review queue for unsure ones.
+- **Calendar and guide app:** assign a guide per tour, check people in,
+  close with tips; private calendar feed for Google, Apple and Outlook.
+- **Equipo:** team chat with channels, direct messages and tour cards.
+- **Travellers CRM:** one contact across channels, a daily queue of reminders
+  and review requests (email, or WhatsApp from the guide's phone).
+- **Marketplace:** public search (`/guias`), guide profile and packages
+  (`/g/<slug>`), booking with price and plan commission, verified reviews,
+  in Spanish and English.
+- **Money:** income per channel for the guide (`/ingresos`), subscriptions
+  and commissions for Turno (`/admin`).
+
+Still needs your accounts: Google verification for Gmail, Stripe Connect and
+prices, a WhatsApp Business number, an Anthropic key for unknown email
+formats, and real sample emails per platform. Feature status:
+`replica/guias/features.csv`.
+
 ## Next
 
 1. Connect the hosted services with your own accounts: see `replica/backend.md`.

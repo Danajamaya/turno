@@ -29,6 +29,31 @@ semana y publica. Sin `RESEND_API_KEY`, los correos (incluido el enlace para
 entrar) se guardan en `apps/web/.data/outbox.jsonl`. `/dev/login` entra como
 cualquier persona y solo existe con `TURNO_DEV_LOGIN=1`.
 
+## Turno Guías
+
+Un marketplace y CRM para guías turísticos, sobre la misma base (plan en
+`replica/guias/`):
+
+- **Plataformas:** cada negocio tiene una dirección de reenvío; los correos
+  de reserva de GuruWalk, Freetour.com, Strawberry Tours, GetYourGuide,
+  Viator y Civitatis llegan a un solo calendario, y los dudosos a revisión.
+- **Calendario y app del guía:** guía por tour, check-in, cierre con
+  propinas; calendario privado para Google, Apple y Outlook.
+- **Equipo:** chat interno con canales, mensajes directos y tarjetas de tour.
+- **Viajeros:** un contacto por persona aunque venga de varias plataformas,
+  y una cola diaria de recordatorios y peticiones de reseña (correo, o
+  WhatsApp desde el teléfono del guía).
+- **Marketplace:** buscador público (`/guias`), perfil y paquetes del guía
+  (`/g/<slug>`), reserva con precio y comisión según plan, reseñas
+  verificadas, en español e inglés.
+- **Dinero:** ingresos por plataforma para el guía (`/ingresos`),
+  suscripciones y comisiones para Turno (`/admin`).
+
+Falta lo que necesita tus cuentas: verificación de Google para Gmail, Stripe
+Connect y precios, un número de WhatsApp Business, una clave de Anthropic
+para formatos de correo desconocidos, y correos reales de cada plataforma.
+Estado de cada función: `replica/guias/features.csv`.
+
 ## Siguiente
 
 1. Conectar los servicios con tus propias cuentas: ver `replica/backend.md`.

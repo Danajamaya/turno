@@ -168,3 +168,37 @@ export async function bookingByCode(slug: string, code: string) {
     return b ?? null;
   });
 }
+
+// ------------------------------------------------------------- search
+
+export interface SearchHit { slug: string; companyName: string; headline: string; city: string; languages: string[]; specialities: string[]; fromCents: number | null; currency: string; hasFree: boolean; rating: number | null; reviews: number; tours: number }
+
+/** Published businesses by city, language, interest and (optionally) a day with a departure. */
+export async function search(q: { city?: string; language?: string; interest?: string; date?: string }): Promise<SearchHit[]> {
+  const wd = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? weekday(q.date) : null;
+  return system((tx) => tx<SearchHit[]>`
+    select gp.slug, c.name as company_name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency,
+           min(t.price_cents) filter (where t.price_model <> 'free_tip') as from_cents,
+           bool_or(t.price_model = 'free_tip') as has_free, count(distinct t.id)::int as tours,
+           (select round(avg(r.rating)::numeric, 1)::float from reviews r where r.company_id = gp.company_id and r.submitted_at is not null) as rating,
+           (select count(*)::int from reviews r where r.company_id = gp.company_id and r.submitted_at is not null) as reviews
+    from guide_profiles gp join companies c on c.id = gp.company_id join tours t on t.company_id = gp.company_id and t.published
+    where gp.published
+      ${q.city?.trim() ? tx`and unaccent_lower(gp.city) like ${"%" + q.city.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "") + "%"}` : tx``}
+      ${q.language?.trim() ? tx`and exists (select 1 from unnest(gp.languages) l where lower(l) = lower(${q.language.trim()}))` : tx``}
+      ${q.interest?.trim() ? tx`and exists (select 1 from unnest(gp.specialities) x where lower(x) = lower(${q.interest.trim()}))` : tx``}
+      ${wd !== null ? tx`and exists (select 1 from tours t2, jsonb_array_elements(t2.weekly_slots) sl where t2.company_id = gp.company_id and t2.published and (sl->>'weekday')::int = ${wd})` : tx``}
+    group by gp.company_id, gp.slug, c.name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency
+    order by rating desc nulls last, tours desc limit 60`);
+}
+
+export async function searchFacets() {
+  return system(async (tx) => {
+    const [f] = await tx<{ cities: string[]; languages: string[]; interests: string[] }[]>`
+      select coalesce(array_agg(distinct gp.city) filter (where gp.city <> ''), '{}') as cities,
+             coalesce((select array_agg(distinct l) from guide_profiles g2, unnest(g2.languages) l where g2.published), '{}') as languages,
+             coalesce((select array_agg(distinct x) from guide_profiles g3, unnest(g3.specialities) x where g3.published), '{}') as interests
+      from guide_profiles gp where gp.published`;
+    return f;
+  });
+}

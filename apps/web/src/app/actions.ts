@@ -13,6 +13,7 @@ import * as guides from "@/lib/guides";
 import * as guideApp from "@/lib/guide-app";
 import * as feeds from "@/lib/feeds";
 import * as marketplace from "@/lib/marketplace";
+import * as crm from "@/lib/crm";
 import { RuleError } from "@/lib/types";
 import { fieldsOf, firstError, localDateSchema, LoginInput, MemberInput, ReviewInput, ShiftInput, SignupInput, uuid } from "@/lib/validate";
 
@@ -288,7 +289,37 @@ export async function bookAction(_: FormState, f: FormData): Promise<FormState> 
   let code: string;
   try {
     ({ code } = await marketplace.book({ slug: fields.slug, tourId: uuid.parse(fields.tourId), startsAt: fields.startsAt, people: Math.round(Number(fields.people) || 0),
-      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: null }));
+      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es" }));
   } catch (e) { return fail(e, fields); }
-  redirect(`/g/${fields.slug}/reserva/${code}`);
+  redirect(`/g/${fields.slug}/reserva/${code}?lang=${f.get("lang") === "en" ? "en" : "es"}`);
+}
+
+// ------------------------------------------------------------- CRM, messages, reviews
+
+export async function submitReviewAction(_: FormState, f: FormData): Promise<FormState> {
+  if (limited(`review:${await clientIp()}`, 20, 60 * 60_000)) return { error: TOO_MANY };
+  const token = String(f.get("token") ?? "");
+  try { await crm.submitReview(token, Number(f.get("rating")), String(f.get("body") ?? ""), String(f.get("author") ?? "")); } catch (e) { return fail(e); }
+  redirect(`/resena/${token}?ok=1&lang=${f.get("lang") === "en" ? "en" : "es"}`);
+}
+
+export async function whatsappSendAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const id = uuid.parse(f.get("id")), body = String(f.get("body") ?? "").trim().slice(0, 2000), phone = String(f.get("phone") ?? "");
+  await crm.markSent(s, id, "whatsapp", body);
+  revalidatePath("/mensajes");
+  redirect(crm.whatsappLink(phone, body));
+}
+
+export async function emailSendAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await crm.sendByEmail(s, uuid.parse(f.get("id")), String(f.get("body") ?? ""));
+  revalidatePath("/mensajes");
+  redirect("/mensajes?enviado=1");
+}
+
+export async function skipMessageAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  await crm.skip(s, uuid.parse(f.get("id")));
+  revalidatePath("/mensajes");
 }

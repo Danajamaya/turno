@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, CalendarRange, ClipboardCheck, Clock, Euro, Home, Inbox, MessagesSquare, Plug, Settings, Store, Tag, UserRound, Users, type LucideIcon } from "lucide-react";
+import { CalendarDays, CalendarRange, ClipboardCheck, Clock, Contact, Euro, Home, Inbox, MessageCircle, MessagesSquare, Plug, Settings, Store, Tag, UserRound, Users, type LucideIcon } from "lucide-react";
 
 // Sidebar in the style of the owner's CRMs: grouped sections, a coloured tile
 // per item, a gold marker on the current page, an unread badge on the chat.
@@ -12,6 +12,10 @@ const managerGroups: { title: string; items: Item[] }[] = [
     { href: "/inicio", label: "Inicio", icon: Home, tile: "bg-gold" },
     { href: "/calendario", label: "Calendario", icon: CalendarRange, tile: "bg-ch-guruwalk" },
     { href: "/equipo", label: "Equipo", icon: MessagesSquare, tile: "bg-ch-viator", badge: true },
+  ] },
+  { title: "Viajeros", items: [
+    { href: "/viajeros", label: "Viajeros", icon: Contact, tile: "bg-ch-civitatis" },
+    { href: "/mensajes", label: "Mensajes", icon: MessageCircle, tile: "bg-ch-guruwalk" },
   ] },
   { title: "Negocio", items: [
     { href: "/ingresos", label: "Ingresos", icon: Euro, tile: "bg-ch-freetour" },

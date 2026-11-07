@@ -63,3 +63,17 @@ admin-only earnings, Stripe invoice retry), `next build`, and
 Verified: 20 core + 26 integration tests (guide app, feeds, marketplace incl.
 a two-traveller race for the last places), `next build`, and e2e/slice,
 e2e/guides, e2e/chat, e2e/finish in Chromium.
+
+## Travellers CRM, messages, reviews, search, English (2026-11-07)
+
+| area | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| G10/G11 Viajeros | done | tags, consent editing | the same person arrives from several platforms; matched by email, then phone |
+| G12/G13 Mensajes and daily queue | partial | WhatsApp Business API (sends through the guide's own WhatsApp for now) | a reminder must not be queued twice when the page is opened again; unique per booking and kind |
+| G18 verified reviews | done | guide reply on the page | only the hash of the review link is stored; a link works once |
+| G01 search | partial | date filter | "Malaga" must find "Málaga" without a Postgres extension |
+| public pages in English | done | guide CRM in English | the booking language now carries through to reminders and review requests |
+
+Verified: 20 core + 31 integration tests, `tsc`, `next build`, and e2e/slice,
+e2e/guides, e2e/chat, e2e/finish, e2e/crm in Chromium. e2e/chat now uses
+unique texts so it can run again on the same database.
