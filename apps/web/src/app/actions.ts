@@ -9,8 +9,9 @@ import { checkoutUrl, portalUrl, type PaidPlan } from "@/lib/billing";
 import { clientIp, limited } from "@/lib/limit";
 import { requireSession, signOut, startSession } from "@/lib/session";
 import * as db from "@/lib/store";
+import * as guides from "@/lib/guides";
 import { RuleError } from "@/lib/types";
-import { fieldsOf, firstError, localDateSchema, LoginInput, MemberInput, ShiftInput, SignupInput, uuid } from "@/lib/validate";
+import { fieldsOf, firstError, localDateSchema, LoginInput, MemberInput, ReviewInput, ShiftInput, SignupInput, uuid } from "@/lib/validate";
 
 export type FormState = { error?: string; ok?: string; fields?: Record<string, string> };
 
@@ -164,4 +165,41 @@ export async function devSignInAction(f: FormData) {
 export async function signOutAction() {
   await signOut();
   redirect("/login");
+}
+
+// ------------------------------------------------------------- guides
+
+export async function closeBookingAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const id = uuid.parse(f.get("bookingId"));
+  const tips = Math.max(0, Math.round(Number(String(f.get("tips") ?? "0").replace(",", ".")) * 100) || 0);
+  await guides.closeBooking(s, id, { attended: f.get("attended") !== "no", tipsCents: Math.min(tips, 10_000_00) });
+  revalidatePath("/calendario");
+  revalidatePath("/ingresos");
+}
+
+export async function setFeeAction(f: FormData) {
+  const s = await requireSession(["owner", "manager"]);
+  const platform = String(f.get("platform"));
+  if (!(guides.PLATFORMS as readonly string[]).includes(platform)) return;
+  const fee = Math.max(0, Math.round(Number(String(f.get("fee") ?? "0").replace(",", ".")) * 100) || 0);
+  await guides.setChannelFee(s, platform, Math.min(fee, 100_00));
+  revalidatePath("/canales");
+}
+
+export async function resolveReviewAction(_: FormState, f: FormData): Promise<FormState> {
+  const s = await requireSession(["owner", "manager"]);
+  const id = uuid.parse(f.get("emailId"));
+  if (f.get("ignore")) {
+    await guides.resolveReview(s, id, "ignore");
+    revalidatePath("/canales");
+    // the reviewed card disappears, so the confirmation lives on the page
+    redirect("/canales?revisado=descartado");
+  }
+  const v = ReviewInput.safeParse(fieldsOf(f, ["platform", "kind", "externalRef", "date", "time", "people", "tourName", "travellerName"]));
+  if (!v.success) return { error: firstError(v.error) };
+  try { await guides.resolveReview(s, id, v.data); } catch (e) { return fail(e); }
+  revalidatePath("/canales");
+  revalidatePath("/calendario");
+  redirect("/canales?revisado=agregada");
 }

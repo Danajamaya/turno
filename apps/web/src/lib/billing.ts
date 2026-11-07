@@ -96,6 +96,17 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
             location_quantity = excluded.location_quantity, current_period_end = excluded.current_period_end`;
         break;
       }
+      case "invoice.paid": {
+        // Turno's subscription revenue, for the platform earnings page.
+        const inv = event.data.object as Stripe.Invoice;
+        if (typeof inv.customer === "string" && inv.amount_paid > 0) {
+          await tx`insert into platform_ledger (company_id, kind, amount_cents, currency, stripe_ref, occurred_at)
+                   values ((select id from companies where stripe_customer_id = ${inv.customer}), 'subscription',
+                           ${inv.amount_paid}, ${inv.currency.toUpperCase()}, ${inv.id}, to_timestamp(${inv.created}))
+                   on conflict (stripe_ref) do nothing`;
+        }
+        break;
+      }
       case "invoice.payment_failed": {
         const inv = event.data.object as Stripe.Invoice;
         if (typeof inv.customer === "string") {

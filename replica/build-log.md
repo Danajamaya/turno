@@ -31,3 +31,20 @@ no console errors and no horizontal scroll at 390px. Screenshots in
 Verified: `TEST_DATABASE_URL=... pnpm test` (12 core + 9 backend tests),
 `next build`, `e2e/slice.mjs` against Postgres including sign-out and sign-in
 with the emailed link, `pnpm audit --prod` clean.
+
+## Guides, first milestone (2026-11-07)
+
+| ID | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| channels core | done | Gmail OAuth, AI extraction, APIs | the reader took "10:30" + "3 personas" as 30 people, read words like CANCELLED as booking refs, and trusted `guruwalk.com.evil.io` as GuruWalk; all three fixed and tested |
+| G06 calendar | partial | month view, calendar feed | |
+| G08/G09 channels and review | partial | Gmail button is a placeholder until Google approves | the review confirmation vanished with its card; now shown on the page |
+| G16 income | partial | per-tour breakdown | money showed as "EUR 55.00"; now "55,00 €" with the company's currency |
+| G20 platform earnings | partial | commissions arrive with marketplace sales | |
+| marketplace (G01–G05) | not started | | |
+
+Verified: 20 core tests (booking email reader included), 16 integration
+tests on Postgres (7 new for guides: idempotent import, early cancellation,
+review queue, tenant isolation, net income with platform fees and tips,
+admin-only earnings, Stripe invoice retry), `next build`, and
+`e2e/guides.mjs` in Chromium.

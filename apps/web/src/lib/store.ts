@@ -23,7 +23,8 @@ export async function createCompany(input: {
     const [taken] = await tx`select 1 from users where lower(email) = lower(${input.ownerEmail})`;
     if (taken) throw new RuleError("email_taken", "Ya existe una cuenta con ese correo. Entra con tu correo para continuar.");
     const [user] = await tx<{ id: string }[]>`insert into users (email, full_name) values (${input.ownerEmail}, ${input.ownerName}) returning id`;
-    const [company] = await tx<Company[]>`insert into companies (name, industry) values (${input.companyName}, ${input.industry}) returning *`;
+    const currency = input.timezone === "Europe/London" ? "GBP" : /^(Europe|Atlantic\/(Canary|Madeira|Azores))\//.test(input.timezone) ? "EUR" : "USD";
+    const [company] = await tx<Company[]>`insert into companies (name, industry, currency) values (${input.companyName}, ${input.industry}, ${currency}) returning *`;
     const [location] = await tx<Location[]>`
       insert into locations (company_id, name, timezone) values (${company.id}, ${input.locationName}, ${input.timezone}) returning *`;
     const [member] = await tx<Member[]>`

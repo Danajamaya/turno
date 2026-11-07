@@ -2,7 +2,8 @@ import { formatMoney, localTime } from "@turno/core";
 
 const LOCALE = "es-US";
 
-export const money = (cents: number, currency = "USD") => formatMoney(cents, currency, LOCALE);
+// Euros the Spanish way ("55,00 €"), dollars the US-Spanish way ("US$55.00").
+export const money = (cents: number, currency = "USD") => formatMoney(cents, currency, currency === "USD" ? LOCALE : "es-ES");
 
 /** "9:00" / "17:30" in the location's zone. */
 export const hm = (iso: string | Date, tz: string) => localTime(typeof iso === "string" ? new Date(iso) : iso, tz);

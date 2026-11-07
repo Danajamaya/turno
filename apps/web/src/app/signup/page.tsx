@@ -6,6 +6,14 @@ import { SignupForm } from "./signup-form";
 export const metadata: Metadata = { title: "Crea tu cuenta" };
 
 const ZONES = [
+  ["Europe/Madrid", "España (Madrid, Barcelona)"],
+  ["Atlantic/Canary", "Canarias"],
+  ["Europe/Lisbon", "Portugal (Lisboa)"],
+  ["Europe/London", "Reino Unido (Londres)"],
+  ["Europe/Paris", "Francia (París)"],
+  ["Europe/Rome", "Italia (Roma)"],
+  ["Europe/Berlin", "Alemania (Berlín)"],
+  ["Europe/Amsterdam", "Países Bajos (Ámsterdam)"],
   ["America/New_York", "Este (Nueva York, Miami)"],
   ["America/Chicago", "Centro (Chicago, Houston)"],
   ["America/Denver", "Montaña (Denver)"],

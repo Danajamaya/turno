@@ -1,0 +1,31 @@
+feature,area,priority,original,clone,notes
+One calendar with bookings from every channel,channels,must,partial,partial,weekly agenda by day; month view and Google/Apple calendar feed next
+Email forwarding address per guide,channels,must,yes,yes,webhook with shared secret; sender authentication required
+Connect Gmail in one click (read only booking emails),channels,must,no,no,needs Google OAuth verification (CASA) before public launch
+Parse GuruWalk booking/change/cancel emails,channels,must,yes,partial,generic es/en reader; exact rules need real sample emails
+Parse Freetour.com emails,channels,must,yes,partial,generic reader; needs real samples
+Parse Strawberry Tours emails,channels,must,unknown,partial,generic reader; needs real samples
+Parse GetYourGuide / Viator / Civitatis emails,channels,must,yes,partial,generic reader; needs real samples
+AI extraction for unknown email formats with review queue,channels,must,no,partial,review queue done; AI step not yet (needs an Anthropic key)
+Idempotent import (no duplicates; cancellations remove),channels,must,yes,yes,Message-ID and platform ref; early cancellations held and applied
+iCal feed import,channels,should,unknown,no,
+OCTO / GetYourGuide / Viator supplier API,channels,should,yes,no,requires connectivity partner certification
+Browser extension (guide's own session),channels,could,no,no,optional; never server-side passwords
+Group list per tour with check-in,operations,must,yes,no,
+Assign guides to tour slots (operators),operations,should,yes,no,reuses Turno schedule
+Travellers CRM with history across channels,crm,must,partial,no,
+WhatsApp and email messages with preview,crm,must,partial,no,like Atlas CRM
+Automatic reminders and review requests queue,crm,must,yes,no,daily queue like Atlas
+Public guide profile (video languages specialities reviews),marketplace,must,no,no,Preply pattern
+Search guides by city date language interest,marketplace,must,no,no,
+Book and pay on Turno (Stripe Connect payouts),marketplace,must,no,no,EU: DAC7 reporting and VAT on commission
+Free tour reservation without payment,marketplace,must,no,no,tip-based tours are the norm in Spain
+Trial / short tour,marketplace,could,no,no,Preply trial-lesson idea
+Verified reviews only from real bookings,marketplace,must,no,no,
+Spanish and English interface,platform,must,yes,no,
+Free plan with higher commission and paid plan with lower commission,billing,must,no,no,owner chose both
+Earnings per tour and channel,finance,should,yes,partial,per channel per month with platform fees and tips; per tour next
+Guide commissions for operators,finance,should,yes,no,Viamki feature
+Logging into platforms with stored guide passwords,channels,could,no,skip,against platform terms; risk to guides' accounts; liability
+Platform earnings for Turno (subscriptions and commissions),finance,must,n/a,partial,admin page + ledger from Stripe invoices; commissions arrive with marketplace sales
+Customer to sale to booking flow with time and price,marketplace,must,n/a,no,owner's ask 2026-11-07: public booking with price and payment

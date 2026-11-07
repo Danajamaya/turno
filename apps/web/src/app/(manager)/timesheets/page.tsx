@@ -54,7 +54,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
           <Card className="tnum grid grid-cols-3 gap-4 text-sm">
             <div><p className="text-text-muted">Horas trabajadas</p><p className="text-lg">{hours(total.minutes)}</p></div>
             <div><p className="text-text-muted">Horas extra</p><p className="text-lg">{hours(total.ot)}</p></div>
-            <div><p className="text-text-muted">Pago bruto estimado</p><p className="text-lg">{money(total.pay)}</p></div>
+            <div><p className="text-text-muted">Pago bruto estimado</p><p className="text-lg">{money(total.pay, s.company.currency)}</p></div>
           </Card>
           {rows.map(({ p, mine, t, pay }) => (
             <Card key={p.id}>
@@ -62,7 +62,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
                 <h2 className="mr-auto text-lg">{p.fullName}</h2>
                 <span className="tnum text-sm">{hours(t.regularMinutes)} h normales</span>
                 <span className={`tnum text-sm ${t.overtimeMinutes ? "text-warning" : ""}`}>{hours(t.overtimeMinutes)} h extra</span>
-                <span className="tnum text-sm font-semibold">{money(pay)}</span>
+                <span className="tnum text-sm font-semibold">{money(pay, s.company.currency)}</span>
               </div>
               <ul className="divide-y divide-border text-sm">
                 {mine.map((c) => (

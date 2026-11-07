@@ -1,9 +1,12 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, ClipboardCheck, Inbox, Settings, Users } from "lucide-react";
+import { CalendarDays, CalendarRange, ClipboardCheck, Euro, Inbox, Plug, Settings, Users } from "lucide-react";
 
 const items = [
+  { href: "/calendario", label: "Calendario", icon: CalendarRange },
+  { href: "/canales", label: "Plataformas", icon: Plug },
+  { href: "/ingresos", label: "Ingresos", icon: Euro },
   { href: "/schedule", label: "Horario", icon: CalendarDays },
   { href: "/team", label: "Equipo", icon: Users },
   { href: "/requests", label: "Solicitudes", icon: Inbox },

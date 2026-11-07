@@ -33,7 +33,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
                     <tr key={p.id} className="border-b border-border last:border-0">
                       <td className="py-3 pr-4 font-semibold">{p.fullName}<span className="block text-xs font-normal text-text-muted">{roleName[p.role]}</span></td>
                       <td className="py-3 pr-4">{p.jobTitle ?? "—"}</td>
-                      <td className="tnum py-3 pr-4">{p.wageCents ? money(p.wageCents) : "—"}</td>
+                      <td className="tnum py-3 pr-4">{p.wageCents ? money(p.wageCents, s.company.currency) : "—"}</td>
                       <td className="hidden max-w-[16rem] truncate py-3 pr-4 text-text-muted md:table-cell">{p.phone ?? p.email}</td>
                       <td className="py-3">{p.status === "invited" ? <Badge tone="invited">Invitado</Badge> : <Badge tone="approved">Activo</Badge>}</td>
                     </tr>
@@ -45,7 +45,7 @@ export default async function TeamPage({ searchParams }: { searchParams: Promise
         </Card>
         <Card>
           <h2 className="mb-4 text-lg">Agregar persona</h2>
-          <AddMemberForm />
+          <AddMemberForm currency={s.company.currency} />
         </Card>
       </div>
     </>
