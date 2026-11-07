@@ -18,7 +18,7 @@ export default async function ClockPage() {
   const today = localDate(new Date(), tz);
   const { start } = localRange(today, 1, tz);
   const { end } = localRange(today, 14, tz);
-  const [card, shifts] = await Promise.all([openCard(s.member.id), myPublishedShifts(s.member, start, end)]);
+  const [card, shifts] = await Promise.all([openCard(s), myPublishedShifts(s, start, end)]);
   const todays = shifts.filter((x) => localDate(new Date(x.startAt), tz) === today);
   const first = s.member.fullName.split(" ")[0];
 
@@ -30,12 +30,13 @@ export default async function ClockPage() {
           <p className="text-xs text-text-muted">{s.location.name} · {s.company.name}</p>
         </div>
         {s.member.role !== "employee" && <Link href="/schedule" className="text-sm text-accent underline">Panel</Link>}
+        <Link href="/account" className="text-sm text-accent underline">Cuenta</Link>
         <form action={signOutAction}><button className="text-sm text-accent underline">Salir</button></form>
       </header>
 
       <Card>
         <p className="text-sm text-text-muted">
-          {todays.length ? <>Hoy {todays.map((x) => `${hm(x.startAt, tz)}–${hm(x.endAt, tz)}`).join(", ")} · {todays[0].jobRole ?? "Turno"}</> : "Hoy no tienes turno programado."}
+          {todays.length ? <>Hoy {todays.map((x) => `${hm(x.startAt, tz)}–${hm(x.endAt, tz)}`).join(", ")} · {todays[0].jobTitle ?? "Turno"}</> : "Hoy no tienes turno programado."}
         </p>
         <ClockPanel clockedInAt={card?.clockInAt ?? null} tz={tz} />
       </Card>
@@ -52,7 +53,7 @@ export default async function ClockPage() {
                 <li key={x.id} className="tnum flex items-center gap-3 py-3 text-sm">
                   <span className={`w-20 font-semibold ${d === today ? "text-accent" : ""}`}>{d === today ? "Hoy" : dayLabel(d)}</span>
                   <span className="mr-auto">{hm(x.startAt, tz)} – {hm(x.endAt, tz)}</span>
-                  <span className="text-text-muted">{x.jobRole ?? ""}</span>
+                  <span className="text-text-muted">{x.jobTitle ?? ""}</span>
                 </li>
               );
             })}

@@ -6,28 +6,33 @@ las apps de iPhone y Android. Es una versión propia del ciclo principal de
 herramientas como Homebase, planeada en `replica/` (análisis, arquitectura,
 base de datos y diseño).
 
-Estado: la versión mínima ya funciona de punta a punta con datos de prueba
-guardados en un archivo local. Ver `replica/build-log.md` y
-`replica/features.csv`: de 21 funciones imprescindibles, 4 están completas y
-10 a medias.
+Estado: el ciclo principal ya funciona con una base de datos Postgres real,
+entrada con enlace por correo y cobros con Stripe listos en el código. Ver
+`replica/build-log.md`, `replica/backend.md` y `replica/features.csv`: de 21
+funciones imprescindibles, 6 están completas y 9 a medias.
 
 ## Cómo correrla
 
+Necesitas Node 22, pnpm y una base de datos Postgres. Copia `.env.example` a
+`apps/web/.env.local` y pon al menos `DATABASE_URL`.
+
 ```bash
 pnpm install
-pnpm test                      # cálculos de horas, pago y reglas de checado
+pnpm migrate
+TEST_DATABASE_URL=postgres://.../turno_test pnpm test   # borra esa base de datos
 pnpm build
 TURNO_DEV_LOGIN=1 pnpm --filter @turno/web start -p 3100
 ```
 
 Abre http://localhost:3100, crea un negocio, agrega gente, pon turnos en la
-semana y publica. `/dev/login` entra como cualquier persona; es solo para
-pruebas y en producción está apagado.
+semana y publica. Sin `RESEND_API_KEY`, los correos (incluido el enlace para
+entrar) se guardan en `apps/web/.data/outbox.jsonl`. `/dev/login` entra como
+cualquier persona y solo existe con `TURNO_DEV_LOGIN=1`.
 
 ## Siguiente
 
-1. Servidor real con Supabase (`/replica-backend`): entrar con código por SMS,
-   la base de datos con sus reglas de acceso, avisos y cobros con Stripe.
+1. Conectar los servicios con tus propias cuentas: ver `replica/backend.md`.
 2. Lo que falta de lo imprescindible: kiosco con PIN, descansos,
-   disponibilidad y vacaciones, editar y arrastrar turnos, exportar CSV.
+   disponibilidad y vacaciones, editar y arrastrar turnos, exportar CSV,
+   alertas automáticas.
 3. App de Expo para iPhone y Android.

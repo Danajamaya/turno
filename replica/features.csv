@@ -1,14 +1,14 @@
 feature,area,priority,original,clone,notes
-Sign up and create a business (multi-tenant),onboarding,must,yes,partial,"company+location+owner in one step; dev store, RLS arrives with replica-backend"
+Sign up and create a business (multi-tenant),onboarding,must,yes,yes,Postgres with RLS per company; tested with a second company
 Add one or more locations,onboarding,must,yes,partial,first location at signup; no add-location screen yet
-Invite employees by SMS or email,team,must,yes,partial,person saved as invited; no SMS/email sent yet
-Roles: owner / manager / employee permissions,team,must,yes,partial,pages and actions check role; dev sign-in instead of real auth
+Invite employees by SMS or email,team,must,yes,partial,email invite sent; SMS waits for Twilio
+Roles: owner / manager / employee permissions,team,must,yes,yes,checked in every action and enforced by RLS
 Employee profile with job role and hourly wage,team,must,yes,yes,wage feeds labor cost
 Personal 4-6 digit clock-in PIN per employee,team,must,yes,no,
 Weekly schedule grid by employee and by job role,scheduling,must,yes,partial,by employee only
 Create edit delete shifts (drag to move),scheduling,must,yes,partial,create and delete; no edit or drag yet
 Copy last week / schedule templates,scheduling,must,yes,partial,copy last week yes; templates no
-Publish schedule and notify team (push SMS email),scheduling,must,yes,partial,publish + draft tracking; notifications counted not sent
+Publish schedule and notify team (push SMS email),scheduling,must,yes,partial,email to people whose shifts changed; push and SMS later
 Employee sees own schedule on mobile,scheduling,must,yes,yes,mobile web; native app later
 Employee availability (recurring weekly),scheduling,must,yes,no,
 Time-off requests with manager approve/deny,scheduling,must,yes,no,
@@ -19,7 +19,7 @@ Break tracking (start/end break),time clock,must,yes,no,
 Timesheets per pay period with totals and overtime,timesheets,must,yes,yes,weekly periods; federal OT + optional daily OT
 Manager edits and approves timecards,timesheets,must,yes,partial,approve yes; editing punches no
 Export timesheets to CSV for payroll,timesheets,must,yes,no,
-Subscription billing with plans (Stripe),billing,must,n/a,no,needed because the clone is a SaaS
+Subscription billing with plans (Stripe),billing,must,n/a,partial,"Checkout, Portal and webhooks built and tested offline; needs the owner's Stripe keys"
 Open shifts employees can claim,scheduling,should,yes,no,
 Shift trade / cover requests with manager approval,scheduling,should,yes,no,
 Projected labor cost on schedule vs sales target,scheduling,should,yes,partial,hours and cost per day/person; no sales target

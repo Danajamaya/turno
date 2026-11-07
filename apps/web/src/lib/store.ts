@@ -1,146 +1,191 @@
-// Development data layer: a JSON file under .data/. Same function signatures
-// the Supabase layer will implement (replica-backend). Server-only.
+// Data layer on Postgres. Every user-facing function takes the Session and
+// runs through withUser(), so row level security backs up the company and
+// role checks written here. Server-only.
 import "server-only";
-import { promises as fs } from "node:fs";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
-import { addLocalDays, canClockIn, localDate, localRange, localTime, overlaps, toInstant } from "@turno/core";
-import type { Company, Location, Member, Role, ScheduleWeek, Shift, TimeCard } from "./types";
-import { RuleError } from "./types";
+import { addLocalDays, canClockIn, localDate, localRange, localTime, toInstant } from "@turno/core";
+import { pgCode, system, withUser, type Tx } from "./db";
+import { appUrl, sendEmail } from "./email";
+import type { Company, Location, Member, Role, ScheduleWeek, Session, Shift, Subscription, TimeCard } from "./types";
+import { FREE_PLAN_PEOPLE, RuleError } from "./types";
 
-interface Db { companies: Company[]; locations: Location[]; members: Member[]; weeks: ScheduleWeek[]; shifts: Shift[]; cards: TimeCard[] }
+const MEMBER = "id, company_id, user_id, full_name, email, phone, role, status, job_title, wage_cents, colour";
+const managerOnly = (s: Session) => {
+  if (s.member.role === "employee") throw new RuleError("forbidden", "Solo un gerente puede hacer esto.");
+};
 
-const FILE = path.join(process.cwd(), ".data", "store.json");
-const empty = (): Db => ({ companies: [], locations: [], members: [], weeks: [], shifts: [], cards: [] });
-
-let queue: Promise<unknown> = Promise.resolve();
-
-async function read(): Promise<Db> {
-  try { return { ...empty(), ...JSON.parse(await fs.readFile(FILE, "utf8")) }; } catch { return empty(); }
-}
-
-async function write(db: Db) {
-  await fs.mkdir(path.dirname(FILE), { recursive: true });
-  const tmp = FILE + "." + process.pid + ".tmp";
-  await fs.writeFile(tmp, JSON.stringify(db, null, 2));
-  await fs.rename(tmp, FILE);
-}
-
-/** Serialises read-modify-write so two requests cannot lose each other's change. */
-function tx<T>(fn: (db: Db) => T | Promise<T>): Promise<T> {
-  const run = queue.then(async () => { const db = await read(); const out = await fn(db); await write(db); return out; });
-  queue = run.catch(() => undefined);
-  return run;
-}
-
-const now = () => new Date().toISOString();
-
-// ------------------------------------------------------------- companies & team
+// ------------------------------------------------------------- sign-up & session
 
 export async function createCompany(input: {
   companyName: string; industry: string | null; locationName: string; timezone: string;
   ownerName: string; ownerEmail: string;
-}): Promise<{ company: Company; location: Location; member: Member }> {
-  return tx((db) => {
-    const company: Company = { id: randomUUID(), name: input.companyName, industry: input.industry, currency: "USD", createdAt: now() };
-    const location: Location = {
-      id: randomUUID(), companyId: company.id, name: input.locationName, timezone: input.timezone,
-      weekStartDay: 1, earlyClockInMin: 10, otWeeklyMin: 2400, otDailyMin: null,
-    };
-    const member: Member = {
-      id: randomUUID(), companyId: company.id, fullName: input.ownerName, email: input.ownerEmail, phone: null,
-      role: "owner", status: "active", jobRole: null, wageCents: 0, colour: 8,
-    };
-    db.companies.push(company); db.locations.push(location); db.members.push(member);
-    return { company, location, member };
+}): Promise<{ userId: string; company: Company; location: Location; member: Member }> {
+  return system(async (tx) => {
+    const [taken] = await tx`select 1 from users where lower(email) = lower(${input.ownerEmail})`;
+    if (taken) throw new RuleError("email_taken", "Ya existe una cuenta con ese correo. Entra con tu correo para continuar.");
+    const [user] = await tx<{ id: string }[]>`insert into users (email, full_name) values (${input.ownerEmail}, ${input.ownerName}) returning id`;
+    const [company] = await tx<Company[]>`insert into companies (name, industry) values (${input.companyName}, ${input.industry}) returning *`;
+    const [location] = await tx<Location[]>`
+      insert into locations (company_id, name, timezone) values (${company.id}, ${input.locationName}, ${input.timezone}) returning *`;
+    const [member] = await tx<Member[]>`
+      insert into members (company_id, user_id, full_name, email, role, status, colour)
+      values (${company.id}, ${user.id}, ${input.ownerName}, ${input.ownerEmail}, 'owner', 'active', 8) returning ${tx.unsafe(MEMBER)}`;
+    await tx`insert into location_members (location_id, member_id, company_id) values (${location.id}, ${member.id}, ${company.id})`;
+    await tx`insert into subscriptions (company_id, plan, status) values (${company.id}, 'free', 'active')`;
+    return { userId: user.id, company, location, member };
   });
 }
 
-export async function getSessionRows(memberId: string) {
-  const db = await read();
-  const member = db.members.find((m) => m.id === memberId && m.status !== "archived");
-  if (!member) return null;
-  const company = db.companies.find((c) => c.id === member.companyId)!;
-  const location = db.locations.find((l) => l.companyId === company.id)!;
-  return { member, company, location };
+/** The person's current workplace: their most recent active membership. */
+export async function sessionForUser(userId: string): Promise<Session | null> {
+  return withUser(userId, async (tx) => {
+    const [member] = await tx<Member[]>`
+      select ${tx.unsafe(MEMBER)} from members where user_id = ${userId} and status = 'active'
+      order by created_at desc limit 1`;
+    if (!member) return null;
+    const [company] = await tx<Company[]>`select * from companies where id = ${member.companyId}`;
+    const [location] = await tx<Location[]>`
+      select l.* from locations l join location_members lm on lm.location_id = l.id
+      where lm.member_id = ${member.id} and l.archived_at is null order by l.created_at limit 1`;
+    return { userId, member, company, location };
+  });
 }
 
+/** Development sign-in only: everyone, with a user row created on demand. */
 export async function listAllMembersForDevLogin() {
-  const db = await read();
-  return db.members.filter((m) => m.status !== "archived").map((m) => ({
-    ...m, companyName: db.companies.find((c) => c.id === m.companyId)?.name ?? "",
-  }));
+  return system((tx) => tx<(Member & { companyName: string })[]>`
+    select m.id, m.full_name, m.role, c.name as company_name from members m join companies c on c.id = m.company_id
+    where m.status <> 'archived' order by c.name, m.full_name`);
 }
 
-export async function listMembers(companyId: string): Promise<Member[]> {
-  const db = await read();
-  return db.members.filter((m) => m.companyId === companyId && m.status !== "archived")
-    .sort((a, b) => a.fullName.localeCompare(b.fullName));
-}
-
-export async function addMember(companyId: string, input: {
-  fullName: string; email: string | null; phone: string | null; role: Role; jobRole: string | null; wageCents: number;
-}): Promise<Member> {
-  if (!input.email && !input.phone) throw new RuleError("unreachable", "Agrega un celular o un correo para poder mandarle la invitación.");
-  return tx((db) => {
-    const used = db.members.filter((m) => m.companyId === companyId).length;
-    const member: Member = { id: randomUUID(), companyId, ...input, status: "invited", colour: (used % 7) + 1 };
-    db.members.push(member);
-    return member;
+export async function devUserForMember(memberId: string): Promise<string> {
+  return system(async (tx) => {
+    const [m] = await tx<Member[]>`select ${tx.unsafe(MEMBER)} from members where id = ${memberId}`;
+    if (!m) throw new RuleError("not_found", "No existe.");
+    let userId = m.userId;
+    if (!userId) {
+      [{ id: userId }] = await tx<{ id: string }[]>`
+        insert into users (email, phone, full_name) values (${m.email}, ${m.phone ?? (m.email ? null : "dev-" + m.id)}, ${m.fullName}) returning id`;
+      await tx`update members set user_id = ${userId} where id = ${m.id}`;
+    }
+    await tx`update members set status = 'active' where id = ${m.id} and status = 'invited'`;
+    return userId!;
   });
+}
+
+// ------------------------------------------------------------- team
+
+export async function listMembers(s: Session): Promise<Member[]> {
+  return withUser(s.userId, (tx) => tx<Member[]>`
+    select ${tx.unsafe(MEMBER)} from members where company_id = ${s.company.id} and status <> 'archived' order by full_name`);
+}
+
+export async function addMember(s: Session, input: {
+  fullName: string; email: string | null; phone: string | null; role: Exclude<Role, "owner">; jobTitle: string | null; wageCents: number;
+}): Promise<Member> {
+  managerOnly(s);
+  if (!input.email && !input.phone) throw new RuleError("unreachable", "Agrega un celular o un correo para poder mandarle la invitación.");
+  if (input.role === "manager" && s.member.role !== "owner") throw new RuleError("forbidden", "Solo el dueño puede agregar gerentes.");
+  const plan = await subscriptionFor(s);
+  const people = await withUser(s.userId, async (tx) => {
+    const [{ n }] = await tx<{ n: number }[]>`select count(*)::int as n from members where company_id = ${s.company.id} and status <> 'archived'`;
+    return n;
+  });
+  if (plan.plan === "free" && people >= FREE_PLAN_PEOPLE) {
+    throw new RuleError("plan_limit", `El plan gratis es para hasta ${FREE_PLAN_PEOPLE} personas. Cambia de plan en Configuración para agregar más.`);
+  }
+  // The login row is shared across businesses, so it is found or created outside RLS.
+  const userId = await system(async (tx) => {
+    const [found] = input.email
+      ? await tx<{ id: string }[]>`select id from users where lower(email) = lower(${input.email})`
+      : await tx<{ id: string }[]>`select id from users where phone = ${input.phone}`;
+    if (found) return found.id;
+    const [u] = await tx<{ id: string }[]>`insert into users (email, phone, full_name) values (${input.email}, ${input.phone}, ${input.fullName}) returning id`;
+    return u.id;
+  });
+  const member = await withUser(s.userId, async (tx) => {
+    const [{ n }] = await tx<{ n: number }[]>`select count(*)::int as n from members where company_id = ${s.company.id}`;
+    try {
+      const [m] = await tx<Member[]>`
+        insert into members (company_id, user_id, full_name, email, phone, role, status, job_title, wage_cents, colour)
+        values (${s.company.id}, ${userId}, ${input.fullName}, ${input.email}, ${input.phone}, ${input.role}, 'invited',
+                ${input.jobTitle}, ${input.wageCents}, ${(n % 7) + 1})
+        returning ${tx.unsafe(MEMBER)}`;
+      await tx`insert into location_members (location_id, member_id, company_id) values (${s.location.id}, ${m.id}, ${s.company.id})`;
+      return m;
+    } catch (e) {
+      if (pgCode(e) === "23505") throw new RuleError("duplicate", "Esa persona ya está en tu equipo.");
+      throw e;
+    }
+  });
+  if (member.email) {
+    await sendEmail({
+      to: member.email,
+      subject: `${s.company.name} te invitó a Turno`,
+      text: `Hola ${member.fullName.split(" ")[0]},\n\n${s.member.fullName} te agregó al equipo de ${s.company.name} en Turno, donde vas a ver tus turnos y checar entrada y salida.\n\nEntra con tu correo aquí: ${appUrl()}/login\n`,
+    });
+  }
+  // SMS invites go out once Twilio is connected (replica/backend.md).
+  return member;
 }
 
 // ------------------------------------------------------------- schedule
 
-export async function getWeek(location: Location, weekStart: string): Promise<{ week: ScheduleWeek | null; shifts: Shift[] }> {
-  const db = await read();
-  const week = db.weeks.find((w) => w.locationId === location.id && w.weekStart === weekStart) ?? null;
-  const { start, end } = localRange(weekStart, 7, location.timezone);
-  const shifts = db.shifts.filter((s) => s.locationId === location.id && new Date(s.startAt) >= start && new Date(s.startAt) < end)
-    .sort((a, b) => a.startAt.localeCompare(b.startAt));
-  return { week, shifts };
+async function weekRows(tx: Tx, s: Session, weekStart: string) {
+  const { start, end } = localRange(weekStart, 7, s.location.timezone);
+  const [week] = await tx<ScheduleWeek[]>`select * from schedule_weeks where location_id = ${s.location.id} and week_start = ${weekStart}`;
+  const shifts = await tx<Shift[]>`
+    select * from shifts where location_id = ${s.location.id} and start_at >= ${start} and start_at < ${end} order by start_at`;
+  return { week: week ?? null, shifts };
 }
 
-function ensureWeek(db: Db, location: Location, weekStart: string): ScheduleWeek {
-  let week = db.weeks.find((w) => w.locationId === location.id && w.weekStart === weekStart);
-  if (!week) {
-    week = { id: randomUUID(), companyId: location.companyId, locationId: location.id, weekStart, status: "draft", publishedAt: null, publishedBy: null };
-    db.weeks.push(week);
-  }
-  return week;
+export async function getWeek(s: Session, weekStart: string) {
+  managerOnly(s);
+  return withUser(s.userId, (tx) => weekRows(tx, s, weekStart));
 }
 
-export async function createShift(location: Location, weekStart: string, input: {
-  memberId: string | null; jobRole: string | null; startAt: Date; endAt: Date; unpaidBreakMin: number; note: string | null;
+async function ensureWeek(tx: Tx, s: Session, weekStart: string): Promise<ScheduleWeek> {
+  await tx`insert into schedule_weeks (company_id, location_id, week_start) values (${s.company.id}, ${s.location.id}, ${weekStart})
+           on conflict (location_id, week_start) do nothing`;
+  const [w] = await tx<ScheduleWeek[]>`select * from schedule_weeks where location_id = ${s.location.id} and week_start = ${weekStart}`;
+  return w;
+}
+
+export async function createShift(s: Session, weekStart: string, input: {
+  memberId: string | null; jobTitle: string | null; startAt: Date; endAt: Date; unpaidBreakMin: number; note: string | null;
 }): Promise<Shift> {
+  managerOnly(s);
   if (input.endAt <= input.startAt) throw new RuleError("invalid_range", "El turno tiene que terminar después de empezar.");
   if (input.endAt.getTime() - input.startAt.getTime() > 24 * 3600_000) throw new RuleError("too_long", "Un turno no puede durar más de 24 horas.");
-  return tx((db) => {
+  return withUser(s.userId, async (tx) => {
+    let name = "";
     if (input.memberId) {
-      const member = db.members.find((m) => m.id === input.memberId && m.companyId === location.companyId);
-      if (!member) throw new RuleError("not_found", "Esa persona no está en este equipo.");
-      const clash = db.shifts.find((s) => s.memberId === input.memberId &&
-        overlaps({ startAt: new Date(s.startAt), endAt: new Date(s.endAt) }, input));
-      if (clash) throw new RuleError("double_booked", `${member.fullName} ya tiene un turno a esa hora.`);
+      const [m] = await tx<Member[]>`select ${tx.unsafe(MEMBER)} from members where id = ${input.memberId} and company_id = ${s.company.id}`;
+      if (!m) throw new RuleError("not_found", "Esa persona no está en este equipo.");
+      name = m.fullName;
     }
-    const week = ensureWeek(db, location, weekStart);
-    const shift: Shift = {
-      id: randomUUID(), companyId: location.companyId, locationId: location.id, scheduleWeekId: week.id,
-      memberId: input.memberId, jobRole: input.jobRole, startAt: input.startAt.toISOString(), endAt: input.endAt.toISOString(),
-      unpaidBreakMin: input.unpaidBreakMin, note: input.note, publishedVersion: 0, dirty: true,
-    };
-    db.shifts.push(shift);
-    return shift;
+    const week = await ensureWeek(tx, s, weekStart);
+    try {
+      const [shift] = await tx<Shift[]>`
+        insert into shifts (company_id, location_id, schedule_week_id, member_id, job_title, start_at, end_at, unpaid_break_min, note)
+        values (${s.company.id}, ${s.location.id}, ${week.id}, ${input.memberId}, ${input.jobTitle}, ${input.startAt}, ${input.endAt},
+                ${input.unpaidBreakMin}, ${input.note})
+        returning *`;
+      return shift;
+    } catch (e) {
+      if (pgCode(e) === "23P01") throw new RuleError("double_booked", `${name} ya tiene un turno a esa hora.`);
+      throw e;
+    }
   });
 }
 
-export async function deleteShift(companyId: string, shiftId: string): Promise<void> {
-  await tx((db) => { db.shifts = db.shifts.filter((s) => !(s.id === shiftId && s.companyId === companyId)); });
+export async function deleteShift(s: Session, shiftId: string): Promise<void> {
+  managerOnly(s);
+  await withUser(s.userId, (tx) => tx`delete from shifts where id = ${shiftId} and company_id = ${s.company.id}`);
 }
 
-export async function copyWeek(location: Location, fromWeek: string, toWeek: string): Promise<number> {
-  const { shifts } = await getWeek(location, fromWeek);
-  const tz = location.timezone;
+export async function copyWeek(s: Session, fromWeek: string, toWeek: string): Promise<number> {
+  const { shifts } = await getWeek(s, fromWeek);
+  const tz = s.location.timezone;
   const days = Math.round((Date.parse(toWeek) - Date.parse(fromWeek)) / 86_400_000);
   // Move by local calendar days so wall times survive a DST change between weeks.
   const move = (iso: string) => {
@@ -148,12 +193,9 @@ export async function copyWeek(location: Location, fromWeek: string, toWeek: str
     return toInstant(addLocalDays(localDate(at, tz), days), localTime(at, tz), tz);
   };
   let created = 0;
-  for (const s of shifts) {
+  for (const x of shifts) {
     try {
-      await createShift(location, toWeek, {
-        memberId: s.memberId, jobRole: s.jobRole, note: s.note, unpaidBreakMin: s.unpaidBreakMin,
-        startAt: move(s.startAt), endAt: move(s.endAt),
-      });
+      await createShift(s, toWeek, { memberId: x.memberId, jobTitle: x.jobTitle, note: x.note, unpaidBreakMin: x.unpaidBreakMin, startAt: move(x.startAt), endAt: move(x.endAt) });
       created++;
     } catch (e) {
       if (!(e instanceof RuleError)) throw e; // skip clashes with shifts already in the target week
@@ -162,78 +204,112 @@ export async function copyWeek(location: Location, fromWeek: string, toWeek: str
   return created;
 }
 
-export async function publishWeek(location: Location, weekStart: string, publisherId: string): Promise<{ notified: number }> {
-  return tx((db) => {
-    const week = ensureWeek(db, location, weekStart);
-    const affected = new Set<string>();
-    for (const s of db.shifts) {
-      if (s.scheduleWeekId !== week.id || !s.dirty) continue;
-      s.dirty = false; s.publishedVersion += 1;
-      if (s.memberId) affected.add(s.memberId);
+export async function publishWeek(s: Session, weekStart: string): Promise<{ notified: number }> {
+  managerOnly(s);
+  const people = await withUser(s.userId, async (tx) => {
+    const week = await ensureWeek(tx, s, weekStart);
+    const changed = await tx<{ memberId: string | null }[]>`
+      update shifts set dirty = false, published_version = published_version + 1
+      where schedule_week_id = ${week.id} and dirty returning member_id`;
+    await tx`update schedule_weeks set status = 'published', published_at = now(), published_by = ${s.member.id} where id = ${week.id}`;
+    const ids = [...new Set(changed.map((c) => c.memberId).filter((x): x is string => !!x))];
+    if (ids.length === 0) return [];
+    const members = await tx<Member[]>`select ${tx.unsafe(MEMBER)} from members where id = any(${ids}::uuid[])`;
+    // Only people whose shifts changed are told; publishing again with no
+    // changes notifies nobody.
+    for (const m of members) {
+      await tx`insert into notifications (company_id, member_id, kind, payload, channels)
+               values (${s.company.id}, ${m.id}, 'schedule_published', ${tx.json({ weekStart })}, ${["email"]})`;
     }
-    week.status = "published"; week.publishedAt = now(); week.publishedBy = publisherId;
-    // Notifications are sent by a job in the real backend; here we only count them.
-    return { notified: affected.size };
+    return members;
   });
+  for (const m of people) {
+    if (!m.email) continue; // push and SMS arrive with the Expo app and Twilio
+    await sendEmail({
+      to: m.email,
+      subject: `Tu horario en ${s.company.name} ya está publicado`,
+      text: `Hola ${m.fullName.split(" ")[0]},\n\n${s.member.fullName} publicó el horario de la semana del ${weekStart}. Míralo aquí: ${appUrl()}/clock\n`,
+    });
+  }
+  return { notified: people.length };
 }
 
-export async function myPublishedShifts(member: Member, from: Date, to: Date): Promise<Shift[]> {
-  const db = await read();
-  return db.shifts.filter((s) => s.memberId === member.id && s.publishedVersion > 0 &&
-    new Date(s.endAt) > from && new Date(s.startAt) < to).sort((a, b) => a.startAt.localeCompare(b.startAt));
+export async function myPublishedShifts(s: Session, from: Date, to: Date): Promise<Shift[]> {
+  return withUser(s.userId, (tx) => tx<Shift[]>`
+    select * from shifts where member_id = ${s.member.id} and published_version > 0 and end_at > ${from} and start_at < ${to}
+    order by start_at`);
 }
 
 // ------------------------------------------------------------- time clock
 
-export async function openCard(memberId: string): Promise<TimeCard | null> {
-  const db = await read();
-  return db.cards.find((c) => c.memberId === memberId && c.clockOutAt === null) ?? null;
+export async function openCard(s: Session): Promise<TimeCard | null> {
+  return withUser(s.userId, async (tx) => {
+    const [c] = await tx<TimeCard[]>`select * from time_cards where member_id = ${s.member.id} and clock_out_at is null`;
+    return c ?? null;
+  });
 }
 
-export async function clockIn(member: Member, location: Location, at = new Date()): Promise<TimeCard> {
-  return tx((db) => {
-    const open = db.cards.some((c) => c.memberId === member.id && c.clockOutAt === null);
-    // the person's current or next published shift within the coming 12 hours
-    const end = new Date(at.getTime() + 12 * 3600_000);
-    const next = db.shifts
-      .filter((s) => s.memberId === member.id && s.publishedVersion > 0 && new Date(s.endAt) > at && new Date(s.startAt) < end)
-      .sort((a, b) => a.startAt.localeCompare(b.startAt))[0];
+/**
+ * Punches are written as system after the rules are checked here, because
+ * employees must not be able to insert time cards directly.
+ */
+export async function clockIn(s: Session, at = new Date()): Promise<TimeCard> {
+  return system(async (tx) => {
+    const [open] = await tx`select 1 from time_cards where member_id = ${s.member.id} and clock_out_at is null`;
+    const [next] = await tx<Shift[]>`
+      select * from shifts where member_id = ${s.member.id} and published_version > 0
+        and end_at > ${at} and start_at < ${new Date(at.getTime() + 12 * 3600_000)}
+      order by start_at limit 1`;
     const started = next && new Date(next.startAt) <= at;
-    const check = canClockIn({ now: at, hasOpenCard: open, nextShiftStart: next && !started ? new Date(next.startAt) : null, earlyClockInMinutes: location.earlyClockInMin });
+    const check = canClockIn({ now: at, hasOpenCard: !!open, nextShiftStart: next && !started ? new Date(next.startAt) : null, earlyClockInMinutes: s.location.earlyClockInMin });
     if (!check.ok) {
       if (check.reason === "already_clocked_in") throw new RuleError(check.reason, "Ya checaste entrada.");
       throw new RuleError(check.reason, check.allowedFrom.toISOString());
     }
-    const card: TimeCard = {
-      id: randomUUID(), companyId: member.companyId, locationId: location.id, memberId: member.id,
-      shiftId: next?.id ?? null, wageCents: member.wageCents, clockInAt: at.toISOString(), clockOutAt: null,
-      source: "web", approvedAt: null,
-    };
-    db.cards.push(card);
-    return card;
-  });
-}
-
-export async function clockOut(member: Member, at = new Date()): Promise<TimeCard> {
-  return tx((db) => {
-    const card = db.cards.find((c) => c.memberId === member.id && c.clockOutAt === null);
-    if (!card) throw new RuleError("not_clocked_in", "No has checado entrada.");
-    card.clockOutAt = at.toISOString();
-    return card;
-  });
-}
-
-export async function cardsInRange(location: Location, from: Date, to: Date): Promise<TimeCard[]> {
-  const db = await read();
-  return db.cards.filter((c) => c.locationId === location.id && new Date(c.clockInAt) >= from && new Date(c.clockInAt) < to);
-}
-
-export async function approveCards(companyId: string, ids: string[]): Promise<number> {
-  return tx((db) => {
-    let n = 0;
-    for (const c of db.cards) {
-      if (c.companyId === companyId && ids.includes(c.id) && c.clockOutAt && !c.approvedAt) { c.approvedAt = now(); n++; }
+    try {
+      const [card] = await tx<TimeCard[]>`
+        insert into time_cards (company_id, location_id, member_id, shift_id, wage_cents, clock_in_at, source)
+        values (${s.company.id}, ${s.location.id}, ${s.member.id}, ${next?.id ?? null}, ${s.member.wageCents}, ${at}, 'web')
+        returning *`;
+      return card;
+    } catch (e) {
+      if (pgCode(e) === "23505") throw new RuleError("already_clocked_in", "Ya checaste entrada."); // double tap
+      throw e;
     }
-    return n;
   });
+}
+
+export async function clockOut(s: Session, at = new Date()): Promise<TimeCard> {
+  return system(async (tx) => {
+    const [card] = await tx<TimeCard[]>`
+      update time_cards set clock_out_at = greatest(${at}::timestamptz, clock_in_at + interval '1 minute')
+      where member_id = ${s.member.id} and clock_out_at is null returning *`;
+    if (!card) throw new RuleError("not_clocked_in", "No has checado entrada.");
+    return card;
+  });
+}
+
+export async function cardsInRange(s: Session, from: Date, to: Date): Promise<TimeCard[]> {
+  managerOnly(s);
+  return withUser(s.userId, (tx) => tx<TimeCard[]>`
+    select * from time_cards where location_id = ${s.location.id} and clock_in_at >= ${from} and clock_in_at < ${to}`);
+}
+
+export async function approveCards(s: Session, ids: string[]): Promise<number> {
+  managerOnly(s);
+  if (ids.length === 0) return 0;
+  return withUser(s.userId, async (tx) => {
+    const rows = await tx`
+      update time_cards set approved_at = now(), approved_by = ${s.member.id}
+      where company_id = ${s.company.id} and id = any(${ids}::uuid[]) and clock_out_at is not null and approved_at is null
+      returning id`;
+    return rows.length;
+  });
+}
+
+// ------------------------------------------------------------- billing
+
+export async function subscriptionFor(s: Session): Promise<Subscription> {
+  const [row] = await system((tx) => tx<Subscription[]>`select * from subscriptions where company_id = ${s.company.id}`);
+  return row ?? { plan: "free", status: "active", locationQuantity: 1, currentPeriodEnd: null, stripeSubscriptionId: null };
 }

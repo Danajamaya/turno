@@ -36,9 +36,10 @@ await page.getByRole("button", { name: "Crear mi cuenta" }).click();
 await page.waitForURL("**/team?nuevo=1");
 step("signup -> team");
 
-for (const [name, phone, role, wage] of [["Ana Torres", "5550100001", "Cocinera", "18.50"], ["Luis Pérez", "5550100002", "Mesero", "12"]]) {
+for (const [name, phone, role, wage, email] of [["Ana Torres", "5550100001", "Cocinera", "18.50", "ana@example.com"], ["Luis Pérez", "5550100002", "Mesero", "12", ""]]) {
   await page.getByLabel("Nombre completo").fill(name);
   await page.getByLabel("Celular").fill(phone);
+  await page.getByLabel("Correo (opcional)").fill(email);
   await page.getByLabel("Puesto").fill(role);
   await page.getByLabel("Sueldo por hora (USD)").fill(wage);
   await page.getByRole("button", { name: "Agregar e invitar" }).click();
@@ -50,6 +51,20 @@ await page.getByRole("button", { name: "Agregar e invitar" }).click();
 await page.getByRole("alert").getByText("Agrega un celular", { exact: false }).waitFor();
 await shot("S03-desktop");
 step("team: 2 people added, missing-contact rejected");
+
+// Sign out and back in with an emailed one-time link
+await page.getByRole("button", { name: "Salir" }).click();
+await page.waitForURL("**/login");
+await page.getByLabel("Tu correo").fill("rosa@example.com");
+await page.getByRole("button", { name: "Mandarme el enlace" }).click();
+await page.getByRole("status").getByText("tiene cuenta, te mandamos un enlace", { exact: false }).waitFor();
+const { readFile } = await import("node:fs/promises");
+const mails = (await readFile(".data/outbox.jsonl", "utf8")).trim().split("\n").map((l) => JSON.parse(l));
+const link = /http\S+token=[\w-]+/.exec(mails.filter((m) => m.to === "rosa@example.com").at(-1).text)[0];
+await page.goto(link);
+await page.getByRole("button", { name: "Entrar" }).click();
+await page.waitForURL("**/schedule");
+step("signed out and back in with an emailed link");
 
 // F02: build and publish (S05/S06/S08)
 await page.goto(`${base}/schedule`);
@@ -103,7 +118,7 @@ step("timesheet approved");
 // phone widths for the manager screens
 const m = await browser.newContext({ viewport: { width: 390, height: 844 }, locale: "es-US", storageState: await ctx.storageState() });
 const p3 = await m.newPage();
-for (const [path, name] of [["/schedule", "S05-mobile"], ["/team", "S03-mobile"], ["/timesheets", "S17-mobile"]]) {
+for (const [path, name] of [["/schedule", "S05-mobile"], ["/team", "S03-mobile"], ["/timesheets", "S17-mobile"], ["/settings", "S23-mobile"]]) {
   await p3.goto(base + path);
   const overflow = await p3.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
   if (overflow) errors.push(`${path}: page scrolls horizontally at 390px`);

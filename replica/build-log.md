@@ -17,3 +17,17 @@ people, missing-contact rejected, create shift, double booking rejected,
 publish, employee clocks in and out on a 390px phone, manager approves) with
 no console errors and no horizontal scroll at 390px. Screenshots in
 `replica/clone-screens/`.
+
+## Backend (2026-10-30)
+
+| area | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| Postgres data layer | done | seed script | `members.reachable` blocked erasing contact details on account deletion; constraint now allows it for archived people |
+| auth | done (email) | SMS codes, Google/Apple | mail scanners can spend one-time links: the link opens a page whose button spends it |
+| billing | built, offline-tested | real Stripe test-mode run | |
+| email | done | Resend domain setup | |
+| jobs | not started | Inngest jobs | |
+
+Verified: `TEST_DATABASE_URL=... pnpm test` (12 core + 9 backend tests),
+`next build`, `e2e/slice.mjs` against Postgres including sign-out and sign-in
+with the emailed link, `pnpm audit --prod` clean.

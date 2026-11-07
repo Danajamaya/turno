@@ -22,7 +22,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const today = localDate(new Date(), tz);
   const week = weekStartOf(q.semana && /^\d{4}-\d{2}-\d{2}$/.test(q.semana) ? q.semana : today, s.location.weekStartDay);
   const days = weekDays(week);
-  const [{ week: row, shifts }, people] = await Promise.all([getWeek(s.location, week), listMembers(s.company.id)]);
+  const [{ week: row, shifts }, people] = await Promise.all([getWeek(s, week), listMembers(s)]);
   const staff = people.filter((p) => p.role !== "owner" || shifts.some((x) => x.memberId === p.id));
   const byId = new Map(people.map((p) => [p.id, p]));
   const dirty = shifts.filter((x) => x.dirty).length;
@@ -51,7 +51,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
   const rows: { key: string; label: string; sub: string; member: Member | null }[] = [
     ...staff.map((p) => {
       const t = perPerson.get(p.id)!;
-      return { key: p.id, label: p.fullName, sub: `${p.jobRole ?? "Sin puesto"} · ${hours(t.minutes)} h${t.ot ? ` · ${hours(t.ot)} h extra` : ""}`, member: p };
+      return { key: p.id, label: p.fullName, sub: `${p.jobTitle ?? "Sin puesto"} · ${hours(t.minutes)} h${t.ot ? ` · ${hours(t.ot)} h extra` : ""}`, member: p };
     }),
     { key: "open", label: "Turnos abiertos", sub: "Cualquiera puede tomarlos", member: null },
   ];
@@ -84,7 +84,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
       {adding && (
         <Card className="mb-6">
           <h2 className="mb-4 text-lg">Nuevo turno · {dayLabel(addDate)}</h2>
-          <ShiftForm week={week} date={addDate} memberId={addMember === "open" ? "" : addMember} people={staff} defaultRole={byId.get(addMember)?.jobRole ?? ""} cancelHref={href()} />
+          <ShiftForm week={week} date={addDate} memberId={addMember === "open" ? "" : addMember} people={staff} defaultRole={byId.get(addMember)?.jobTitle ?? ""} cancelHref={href()} />
         </Card>
       )}
 
@@ -120,7 +120,7 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                             return (
                               <div key={x.id} className={`relative rounded-sm border-l-[3px] px-2 py-1 text-xs ${colour ? `bg-role-${colour} text-role-${colour}-text border-role-${colour}-text` : "border border-dashed border-border-input bg-bg text-text-muted"}`}>
                                 <span className="tnum block text-sm font-semibold">{hm(x.startAt, tz)}–{hm(x.endAt, tz)}</span>
-                                {x.jobRole ?? "Sin puesto"}{x.unpaidBreakMin ? ` · ${x.unpaidBreakMin} min descanso` : ""}{overnight ? " · termina al día siguiente" : ""}
+                                {x.jobTitle ?? "Sin puesto"}{x.unpaidBreakMin ? ` · ${x.unpaidBreakMin} min descanso` : ""}{overnight ? " · termina al día siguiente" : ""}
                                 {x.dirty && <span className="sr-only"> (sin publicar)</span>}
                                 {x.dirty && <span aria-hidden className="absolute right-1 top-1 h-2 w-2 rounded-pill bg-accent" />}
                                 <form action={deleteShiftAction} className="absolute bottom-1 right-1 opacity-0 focus-within:opacity-100 group-hover:opacity-100">

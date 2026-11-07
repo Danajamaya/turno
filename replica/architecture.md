@@ -15,7 +15,7 @@ not to be asked further questions.
 | monorepo | pnpm workspaces + Turborepo: `apps/web`, `apps/mobile`, `packages/core`, `packages/db` | time math, OT rules and validation (zod) shared by web, mobile and server |
 | database | Postgres on Supabase | managed, row level security, realtime and storage in one place |
 | ORM | Drizzle | typed SQL that stays close to `schema.sql`; migrations in git |
-| auth | Supabase Auth: phone OTP (SMS) and email magic link, Google for owners | hourly staff often have no work email; no passwords to reset |
+| auth | Own passwordless auth: email link now, SMS code next (changed from Supabase Auth, see `backend.md`) | hourly staff often have no work email; no passwords to reset; no vendor lock-in |
 | payments | Stripe Checkout + Billing, per-location quantity | matches the per-location pricing the market expects |
 | email | Resend | simple API, good deliverability |
 | SMS | Twilio Messaging (OTP is sent by Supabase via Twilio too) | invites and schedule alerts for staff without the app |

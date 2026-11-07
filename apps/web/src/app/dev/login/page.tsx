@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { devSignInAction } from "@/app/actions";
 import { listAllMembersForDevLogin } from "@/lib/store";
 import { Badge, Button, Card, EmptyState, ButtonLink } from "@/components/ui";
@@ -10,6 +11,7 @@ const roleName = { owner: "Dueño", manager: "Gerente", employee: "Empleado" } a
 
 // Development-only sign-in: pick any person. Replaced by Supabase Auth (SMS code / email link).
 export default async function DevLogin() {
+  if (process.env.TURNO_DEV_LOGIN !== "1") notFound();
   const people = await listAllMembersForDevLogin();
   return (
     <main className="mx-auto max-w-xl px-4 py-12">

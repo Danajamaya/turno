@@ -21,7 +21,7 @@ export function ShiftForm({ week, date, memberId, people, defaultRole, cancelHre
             </Select>
             <Field label="Entrada" name="start" type="time" step={900} required defaultValue={s.fields?.start ?? "09:00"} />
             <Field label="Salida" name="end" type="time" step={900} required defaultValue={s.fields?.end ?? "17:00"} help="Si es antes de la entrada, termina al día siguiente." />
-            <Field label="Puesto" name="jobRole" defaultValue={s.fields?.jobRole ?? defaultRole} />
+            <Field label="Puesto" name="jobTitle" defaultValue={s.fields?.jobTitle ?? defaultRole} />
             <Field label="Descanso sin goce (min)" name="breakMin" type="number" min="0" step="5" inputMode="numeric" defaultValue={s.fields?.breakMin ?? "30"} />
           </div>
           <Field label="Nota (opcional)" name="note" defaultValue={s.fields?.note} />

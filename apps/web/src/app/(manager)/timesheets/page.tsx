@@ -18,7 +18,7 @@ export default async function TimesheetsPage({ searchParams }: { searchParams: P
   const week = weekStartOf(q.semana && /^\d{4}-\d{2}-\d{2}$/.test(q.semana) ? q.semana : today, s.location.weekStartDay);
   const days = weekDays(week);
   const { start, end } = localRange(week, 7, tz);
-  const [cards, people] = await Promise.all([cardsInRange(s.location, start, end), listMembers(s.company.id)]);
+  const [cards, people] = await Promise.all([cardsInRange(s, start, end), listMembers(s)]);
   const rules = { weeklyThresholdMinutes: s.location.otWeeklyMin, dailyThresholdMinutes: s.location.otDailyMin };
 
   const rows = people.map((p) => {

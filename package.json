@@ -6,7 +6,8 @@
     "build": "pnpm --filter @turno/web build",
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "tokens": "python3 replica/design/build_tokens.py && cp replica/design/tokens.css apps/web/src/app/tokens.css && cp replica/design/tailwind.preset.js apps/web/tailwind.preset.js"
+    "tokens": "python3 replica/design/build_tokens.py && cp replica/design/tokens.css apps/web/src/app/tokens.css && cp replica/design/tailwind.preset.js apps/web/tailwind.preset.js",
+    "migrate": "pnpm --filter @turno/web migrate"
   },
   "packageManager": "pnpm@10.28.0"
 }

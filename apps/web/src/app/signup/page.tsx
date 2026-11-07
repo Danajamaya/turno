@@ -27,7 +27,7 @@ export default function SignupPage() {
       <Card>
         <SignupForm zones={ZONES} />
       </Card>
-      <p className="mt-6 text-sm text-text-muted">¿Ya tienes cuenta? <Link className="text-accent underline" href="/dev/login">Entrar</Link></p>
+      <p className="mt-6 text-sm text-text-muted">¿Ya tienes cuenta? <Link className="text-accent underline" href="/login">Entrar</Link></p>
     </main>
   );
 }

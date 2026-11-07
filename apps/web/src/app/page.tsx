@@ -3,6 +3,6 @@ import { getSession } from "@/lib/session";
 
 export default async function Home() {
   const s = await getSession();
-  if (!s) redirect("/signup");
+  if (!s) redirect("/login");
   redirect(s.member.role === "employee" ? "/clock" : "/schedule");
 }
