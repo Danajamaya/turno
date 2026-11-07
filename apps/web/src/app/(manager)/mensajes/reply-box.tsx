@@ -6,13 +6,16 @@ import { ActionForm, Submit } from "@/components/forms";
 
 // Write the answer, or start from a suggested draft and edit it.
 export function ReplyBox({ id }: { id: string }) {
+  // the form remounts its children after a successful send, which clears the draft
+  return <ActionForm action={replyInquiryAction} className="grid gap-2" resetOnOk>{() => <Draft id={id} />}</ActionForm>;
+}
+
+function Draft({ id }: { id: string }) {
   const [text, setText] = useState("");
   const [drafts, setDrafts] = useState<string[] | null>(null);
   const [source, setSource] = useState<"claude" | "templates" | null>(null);
   const [busy, start] = useTransition();
   return (
-    <ActionForm action={replyInquiryAction} className="grid gap-2" resetOnOk>
-      {() => (
         <>
           <input type="hidden" name="id" value={id} />
           <label htmlFor={`r-${id}`} className="sr-only">Tu respuesta</label>
@@ -29,7 +32,5 @@ export function ReplyBox({ id }: { id: string }) {
             <Submit size="sm">Enviar respuesta</Submit>
           </div>
         </>
-      )}
-    </ActionForm>
   );
 }
