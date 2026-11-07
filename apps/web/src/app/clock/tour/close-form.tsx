@@ -11,7 +11,7 @@ export function CloseTourForm({ tourKey, closed, tips, currency }: { tourKey: st
           <input type="hidden" name="key" value={tourKey} />
           <p className="font-semibold">{closed ? "Tour cerrado" : "Cerrar el tour"}</p>
           <p className="text-sm text-text-muted">Quien no esté marcado cuenta como que vino. Las propinas se reparten entre las reservas según cuántas personas trajo cada una.</p>
-          <Field label={`Propinas recogidas (${currency})`} name="tips" inputMode="decimal" defaultValue={tips ? (tips / 100).toFixed(2) : ""} />
+          <Field label={`Propinas en efectivo (${currency})`} name="tips" inputMode="decimal" defaultValue={tips ? (tips / 100).toFixed(2) : ""} />
           <Submit size="lg">{closed ? "Actualizar propinas" : "Cerrar tour"}</Submit>
         </>
       )}

@@ -5,7 +5,9 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import { addLocalDays, commissionCents, localDate, toInstant, weekday } from "@turno/core";
 import { system, withUser } from "./db";
+import { afterBookingChange } from "./booking-events";
 import { sendEmail } from "./email";
+import { redeemGift } from "./gifts";
 import type { Session } from "./types";
 import { RuleError } from "./types";
 
@@ -110,11 +112,16 @@ export async function departures(tour: Tour & { companyId?: string }, companyId:
     select starts_at, sum(people)::int as people from bookings
     where company_id = ${companyId} and status <> 'cancelled' and coalesce(tour_name, '') = ${tour.title}
       and starts_at = any(${list.map((d) => d.startsAt)}::timestamptz[]) group by starts_at`);
-  for (const d of list) d.left = Math.max(0, tour.capacity - (taken.find((t) => t.startsAt === d.startsAt)?.people ?? 0));
+  const closed = tour.id ? await system((tx) => tx<{ startsAt: string }[]>`
+    select starts_at from departure_closures where tour_id = ${tour.id} and starts_at = any(${list.map((d) => d.startsAt)}::timestamptz[])`) : [];
+  for (const d of list) {
+    d.left = Math.max(0, tour.capacity - (taken.find((t) => t.startsAt === d.startsAt)?.people ?? 0));
+    if (closed.some((c) => c.startsAt === d.startsAt)) d.left = 0; // the business stopped selling it on Turno
+  }
   return list.sort((a, b) => a.startsAt.localeCompare(b.startsAt));
 }
 
-export interface BookingRequest { slug: string; tourId: string; startsAt: string; people: number; name: string; email: string; phone: string | null; language: string | null }
+export interface BookingRequest { slug: string; tourId: string; startsAt: string; people: number; name: string; email: string; phone: string | null; language: string | null; giftCode?: string | null }
 
 /** A traveller books on Turno. Capacity is re-checked inside the transaction, under a lock. */
 export async function book(r: BookingRequest): Promise<{ code: string }> {
@@ -130,6 +137,7 @@ export async function book(r: BookingRequest): Promise<{ code: string }> {
     const open = await departures(tour, p.companyId, p.timezone, 60);
     const dep = open.find((d) => d.startsAt === new Date(r.startsAt).toISOString());
     if (!dep) throw new RuleError("slot", "Esa salida ya no está disponible. Elige otra.");
+    if (dep.left < r.people) throw new RuleError("full", dep.left > 0 ? `Solo quedan ${dep.left} plazas.` : "Esa salida ya está completa.");
     const [{ taken }] = await tx<{ taken: number }[]>`select coalesce(sum(people), 0)::int as taken from bookings
       where company_id = ${p.companyId} and status <> 'cancelled' and coalesce(tour_name, '') = ${tour.title} and starts_at = ${dep.startsAt}`;
     if (taken + r.people > tour.capacity) throw new RuleError("full", tour.capacity - taken > 0 ? `Solo quedan ${tour.capacity - taken} plazas.` : "Esa salida ya está completa.");
@@ -137,31 +145,33 @@ export async function book(r: BookingRequest): Promise<{ code: string }> {
     const [{ plan }] = await tx<{ plan: string }[]>`select coalesce((select plan from subscriptions where company_id = ${p.companyId}), 'free') as plan`;
     const [settings] = await tx<{ commissionBpsFree: number; commissionBpsPaid: number; commissionBpsPlus: number }[]>`select commission_bps_free, commission_bps_paid, commission_bps_plus from platform_settings`;
     const commission = commissionCents(gross, plan === "plus" ? settings.commissionBpsPlus : plan === "essentials" ? settings.commissionBpsPaid : settings.commissionBpsFree);
+    const gift = r.giftCode?.trim() ? await redeemGift(tx, p.companyId, r.giftCode, gross) : null;
     const [channel] = await tx<{ id: string }[]>`insert into channels (company_id, platform, method, last_event_at) values (${p.companyId}, 'turno', 'marketplace', now())
       on conflict (company_id, platform, method) do update set last_event_at = now() returning id`;
     const [traveller] = await tx<{ id: string }[]>`insert into travellers (company_id, name, email, phone, language, first_platform)
       values (${p.companyId}, ${r.name}, ${r.email}, ${r.phone}, ${r.language}, 'turno')
       on conflict (company_id, lower(email)) where email is not null do update set name = excluded.name, phone = coalesce(excluded.phone, travellers.phone)
       returning id`;
-    await tx`insert into bookings (company_id, channel_id, platform, external_ref, tour_id, tour_name, traveller_id, starts_at, people, status, gross_cents,
-        turno_commission_cents, currency, payment)
+    const [booking] = await tx<{ id: string }[]>`insert into bookings (company_id, channel_id, platform, external_ref, tour_id, tour_name, traveller_id, starts_at, people, status, gross_cents,
+        turno_commission_cents, currency, payment, gift_card_id, gift_cents)
       values (${p.companyId}, ${channel.id}, 'turno', ${code}, ${tour.id}, ${tour.title}, ${traveller.id}, ${dep.startsAt}, ${r.people}, 'confirmed', ${gross},
-        ${commission}, ${tour.currency}, ${gross > 0 ? "on_site" : "free"})`;
-    return { tour, dep, gross, companyName: p.companyName, timezone: p.timezone };
+        ${commission}, ${tour.currency}, ${gross > 0 ? "on_site" : "free"}, ${gift?.giftId ?? null}, ${gift?.giftCents ?? 0}) returning id`;
+    return { tour, dep, gross, gift: gift?.giftCents ?? 0, bookingId: booking.id, companyName: p.companyName, timezone: p.timezone };
   });
   const when = new Intl.DateTimeFormat("es-ES", { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", timeZone: result.timezone }).format(new Date(result.dep.startsAt));
   await sendEmail({
     to: r.email,
     subject: `Reserva confirmada: ${result.tour.title}`,
-    text: `Hola ${r.name.split(" ")[0]},\n\nTu reserva con ${result.companyName} está confirmada.\n\n${result.tour.title}\n${when}\n${r.people} ${r.people === 1 ? "persona" : "personas"}\nPunto de encuentro: ${result.tour.meetingPoint ?? "te lo enviamos antes del tour"}\nCódigo: ${code}\n\n${result.gross > 0 ? "Pagas en el punto de encuentro." : "Es un tour a la voluntad: al final pagas lo que te parezca justo."}\n`,
+    text: `Hola ${r.name.split(" ")[0]},\n\nTu reserva con ${result.companyName} está confirmada.\n\n${result.tour.title}\n${when}\n${r.people} ${r.people === 1 ? "persona" : "personas"}\nPunto de encuentro: ${result.tour.meetingPoint ?? "te lo enviamos antes del tour"}\nCódigo: ${code}\n\n${result.gross > 0 ? (result.gift > 0 ? `Tu tarjeta regalo cubre ${(result.gift / 100).toFixed(2)} ${result.tour.currency}.${result.gross - result.gift > 0 ? ` El resto (${((result.gross - result.gift) / 100).toFixed(2)} ${result.tour.currency}) lo pagas en el punto de encuentro.` : ""}` : "Pagas en el punto de encuentro.") : "Es un tour a la voluntad: al final pagas lo que te parezca justo."}\n`,
   });
+  await afterBookingChange(result.bookingId, "new");
   return { code };
 }
 
 export async function bookingByCode(slug: string, code: string) {
   return system(async (tx) => {
-    const [b] = await tx<{ tourName: string; startsAt: string; people: number; grossCents: number; currency: string; payment: string; meetingPoint: string | null; companyName: string; timezone: string; status: string }[]>`
-      select b.tour_name, b.starts_at, b.people, b.gross_cents, b.currency, b.payment, b.status, t.meeting_point, c.name as company_name,
+    const [b] = await tx<{ tourName: string; startsAt: string; people: number; grossCents: number; giftCents: number; currency: string; payment: string; meetingPoint: string | null; companyName: string; timezone: string; status: string }[]>`
+      select b.tour_name, b.starts_at, b.people, b.gross_cents, b.gift_cents, b.currency, b.payment, b.status, t.meeting_point, c.name as company_name,
              (select l.timezone from locations l where l.company_id = c.id order by l.created_at limit 1) as timezone
       from bookings b join guide_profiles gp on gp.company_id = b.company_id join companies c on c.id = b.company_id left join tours t on t.id = b.tour_id
       where gp.slug = ${slug} and b.platform = 'turno' and b.external_ref = ${code}`;
@@ -171,13 +181,13 @@ export async function bookingByCode(slug: string, code: string) {
 
 // ------------------------------------------------------------- search
 
-export interface SearchHit { slug: string; companyName: string; headline: string; city: string; languages: string[]; specialities: string[]; fromCents: number | null; currency: string; hasFree: boolean; rating: number | null; reviews: number; tours: number }
+export interface SearchHit { companyId: string; slug: string; companyName: string; headline: string; city: string; languages: string[]; specialities: string[]; fromCents: number | null; currency: string; hasFree: boolean; rating: number | null; reviews: number; tours: number }
 
 /** Published businesses by city, language, interest and (optionally) a day with a departure. */
 export async function search(q: { city?: string; language?: string; interest?: string; date?: string }): Promise<SearchHit[]> {
   const wd = q.date && /^\d{4}-\d{2}-\d{2}$/.test(q.date) ? weekday(q.date) : null;
   return system((tx) => tx<SearchHit[]>`
-    select gp.slug, c.name as company_name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency,
+    select gp.company_id, gp.slug, c.name as company_name, gp.headline, gp.city, gp.languages, gp.specialities, c.currency,
            min(t.price_cents) filter (where t.price_model <> 'free_tip') as from_cents,
            bool_or(t.price_model = 'free_tip') as has_free, count(distinct t.id)::int as tours,
            (select round(avg(r.rating)::numeric, 1)::float from reviews r where r.company_id = gp.company_id and r.submitted_at is not null) as rating,

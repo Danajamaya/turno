@@ -63,6 +63,10 @@ A marketplace and CRM for tour guides, built on the same core (plan in
   in Spanish and English.
 - **Money:** income per channel for the guide (`/ingresos`), subscriptions
   and commissions for Turno (`/admin`).
+- **Growth:** waiting list for full tours, overbooking alerts across platforms,
+  card tips by QR, photos, questions from travellers with suggested replies,
+  gift cards, price ideas from demand, suggested guide assignment and monthly
+  guide pay, a weekly summary email, and an installable app with push.
 
 Still needs your accounts: Google verification for Gmail, Stripe Connect and
 prices, a WhatsApp Business number, an Anthropic key for unknown email

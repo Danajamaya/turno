@@ -81,7 +81,7 @@ await guide.getByRole("link", { name: /Pasar lista/ }).first().click();
 await guide.getByRole("button", { name: /Emma Wilson llegó/ }).click();
 await guide.waitForLoadState("networkidle");
 await guide.getByText("3 de 3 llegaron").waitFor();
-await guide.getByLabel(/Propinas recogidas/).fill("20");
+await guide.getByLabel(/Propinas en efectivo/).fill("20");
 await guide.getByRole("button", { name: "Cerrar tour" }).click();
 await guide.getByText("Tour cerrado. ¡Buen trabajo!").waitFor();
 await guide.screenshot({ path: `${out}/APP-checkin-mobile.png`, fullPage: true });

@@ -38,6 +38,20 @@ to a hosted service yet: that needs the owner's accounts and keys.
 4. **Twilio** (later, for SMS invites and codes): US numbers need 10DLC brand
    and campaign registration, which takes days to weeks. Start it early.
 
+5. **Turno Guías extras** (all optional; each feature degrades gracefully without its key):
+   - `LINK_SECRET`: any long random string; signs the tip QR links. Without it in
+     production the QR is hidden.
+   - Card tips and gift cards use the same Stripe account (Checkout, one-off
+     payments). Also add `invoice.paid` to the webhook events if not already there.
+     Money lands in Turno's Stripe account; paying guides directly needs
+     **Stripe Connect** (Express accounts), which is the next step.
+   - `CRON_SECRET` and a weekly scheduler (e.g. Vercel cron, Mondays 08:00) calling
+     `GET /api/cron/weekly` with `Authorization: Bearer $CRON_SECRET`.
+   - Push to phones: `npx web-push generate-vapid-keys`, then `VAPID_PUBLIC_KEY`,
+     `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT=mailto:you@your-domain`.
+   - `ANTHROPIC_API_KEY` (optional) for reply suggestions written by Claude;
+     without it, suggestions are built from the business's own tour data.
+
 All variables are listed in `.env.example`.
 
 ## Checklist

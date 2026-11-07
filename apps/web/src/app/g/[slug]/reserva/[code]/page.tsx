@@ -26,7 +26,9 @@ export default async function Confirmed({ params, searchParams }: { params: Prom
           <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.when}</dt><dd className="font-semibold first-letter:uppercase">{when}</dd></div>
           <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.people}</dt><dd className="font-semibold">{b.people}</dd></div>
           {b.meetingPoint && <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.meeting}</dt><dd className="font-semibold">{b.meetingPoint}</dd></div>}
-          <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.payment}</dt><dd className="font-semibold">{b.payment === "free" ? l.payTip : l.payOnSite(money(b.grossCents, b.currency))}</dd></div>
+          <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.payment}</dt><dd className="text-right font-semibold">{b.payment === "free" ? l.payTip : b.giftCents > 0
+            ? <>{l.giftPaid(money(b.giftCents, b.currency))}{b.grossCents > b.giftCents && <span className="block">{l.giftRest(money(b.grossCents - b.giftCents, b.currency))}</span>}</>
+            : l.payOnSite(money(b.grossCents, b.currency))}</dd></div>
           <div className="flex justify-between gap-4"><dt className="text-text-muted">{l.code}</dt><dd className="tnum font-semibold">{code}</dd></div>
         </dl>
       </Card>

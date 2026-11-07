@@ -3,6 +3,7 @@
 // people in at the meeting point and closes the tour with the tips.
 import "server-only";
 import { system, withUser, type Tx } from "./db";
+import { cardTipsCents, splitTips } from "./tips";
 import type { Session } from "./types";
 import { RuleError } from "./types";
 
@@ -93,15 +94,10 @@ export async function closeTour(s: Session, key: string, tipsCents: number): Pro
     await mayRun(tx, s, { startsAt, tourName });
     await tx`update bookings set status = 'attended' where company_id = ${s.company.id} and starts_at = ${startsAt}
              and coalesce(tour_name, '') = ${tourName} and status = 'confirmed'`;
-    const came = await tx<{ id: string; people: number }[]>`select id, people from bookings where company_id = ${s.company.id}
-             and starts_at = ${startsAt} and coalesce(tour_name, '') = ${tourName} and status = 'attended' order by created_at`;
-    const total = came.reduce((n, b) => n + b.people, 0);
+    const [{ total }] = await tx<{ total: number }[]>`select coalesce(sum(people), 0)::int as total from bookings where company_id = ${s.company.id}
+             and starts_at = ${startsAt} and coalesce(tour_name, '') = ${tourName} and status = 'attended'`;
     if (total === 0) { if (tipsCents > 0) throw new RuleError("nobody", "Nadie marcado como presente: no hay a quién asignar las propinas."); return; }
-    let left = tipsCents;
-    for (const [i, b] of came.entries()) {
-      const share = i === came.length - 1 ? left : Math.floor((tipsCents * b.people) / total);
-      left -= share;
-      await tx`update bookings set tips_cents = ${share} where id = ${b.id}`;
-    }
+    // cash entered now plus tips already paid by card through the tour's QR
+    await splitTips(tx, s.company.id, startsAt, tourName, tipsCents + await cardTipsCents(s.company.id, startsAt, tourName, tx));
   });
 }

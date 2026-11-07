@@ -5,6 +5,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { AUTO_IMPORT_CONFIDENCE, bookingStart, guideNetCents, readBookingEmail, type ParsedBooking } from "@turno/core";
+import { afterBookingChange } from "./booking-events";
 import { system, withUser, type Tx } from "./db";
 import type { Session } from "./types";
 import { RuleError } from "./types";
@@ -61,6 +62,12 @@ export type IngestResult =
  * platform's booking reference, so retries and duplicate forwards are safe.
  */
 export async function ingestEmail(mail: InboundEmail): Promise<IngestResult> {
+  const result = await ingest(mail);
+  if (result.status === "imported") await afterBookingChange(result.bookingId, result.kind);
+  return result;
+}
+
+async function ingest(mail: InboundEmail): Promise<IngestResult> {
   const token = /\br-([a-z0-9]+)@/i.exec(mail.to)?.[1]?.toLowerCase();
   if (!token) return { status: "unknown_address" };
   return system(async (tx) => {
@@ -181,6 +188,9 @@ export async function resolveReview(s: Session, emailId: string, fix: { platform
     const result = await system((sys) => applyBooking(sys, s.company.id, merged, emailId));
     if (result.status === "needs_review") throw new RuleError("incomplete", result.reason);
     await tx`update inbound_emails set status = 'imported', booking_id = ${result.status === "imported" ? result.bookingId : null} where id = ${emailId}`;
+    return result;
+  }).then(async (result) => {
+    if (result?.status === "imported") await afterBookingChange(result.bookingId, result.kind);
     return result;
   });
 }

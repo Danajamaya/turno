@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, CalendarCheck, ChevronLeft, Clock, Globe, MapPin, Star, Users, Wallet } from "lucide-react";
+import { BadgeCheck, CalendarCheck, ChevronLeft, Clock, Gift, Globe, MapPin, Star, Users, Wallet } from "lucide-react";
 import { ChannelBadge } from "@/components/channel";
 import { PublicHeader } from "@/components/public-header";
-import { TourCover } from "@/components/postcard";
+import { Cover } from "@/components/postcard";
+import { photosFor } from "@/lib/media";
 import { companyReviews } from "@/lib/crm";
 import { money } from "@/lib/format";
 import { localeOf, pickLang, t } from "@/lib/i18n";
 import { departures, publicProfile } from "@/lib/marketplace";
+import { AskForm } from "./ask-form";
 import { BookingForm } from "./booking-form";
 
 export const dynamic = "force-dynamic";
@@ -40,6 +42,8 @@ export default async function PublicProfile({ params, searchParams }: { params: 
     companyReviews(p.companyId, 8),
   ]);
   const video = embed(p.videoUrl);
+  const photos = await photosFor([p.companyId, ...tours.map((x) => x.id)]);
+  const avatar = photos.get(p.companyId)?.[0];
   const initials = p.companyName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   const paid = tours.filter((x) => x.priceModel !== "free_tip");
   const from = paid.length ? Math.min(...paid.map((x) => x.priceCents)) : null;
@@ -56,7 +60,10 @@ export default async function PublicProfile({ params, searchParams }: { params: 
       <main className="mx-auto grid max-w-content gap-10 px-4 pb-16 pt-8 md:px-8 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="grid content-start gap-12">
           <section className="flex flex-wrap items-start gap-6">
-            <span className="grid h-28 w-28 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-gold to-ch-strawberry font-serif text-display text-on-side shadow-pop">{initials}</span>
+            {avatar
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={`/api/media/${avatar}`} alt={p.companyName} className="h-28 w-28 shrink-0 rounded-lg object-cover shadow-pop" />
+              : <span className="grid h-28 w-28 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-gold to-ch-strawberry font-serif text-display text-on-side shadow-pop">{initials}</span>}
             <div className="min-w-0 flex-1">
               <h1 className="font-serif text-xl md:text-display">{p.companyName}</h1>
               {p.headline && <p className="mt-2 text-lg font-normal text-text-muted">{p.headline}</p>}
@@ -83,7 +90,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
               {tours.map((tour) => (
                 <article key={tour.id} id={`tour-${tour.id}`} className="scroll-mt-24 overflow-hidden rounded-lg border border-border">
                   <div className="grid md:grid-cols-[240px_minmax(0,1fr)]">
-                    <div className="aspect-[16/9] md:aspect-[4/3] md:self-start"><TourCover title={tour.title} time={firstTime(tour)} about={tour.description ?? ""} rounded={false} /></div>
+                    <div className="aspect-[16/9] md:aspect-[4/3] md:self-start"><Cover photo={photos.get(tour.id)?.[0]} title={tour.title} time={firstTime(tour)} about={tour.description ?? ""} rounded={false} /></div>
                     <div className="p-5">
                       <div className="flex flex-wrap items-start justify-between gap-4">
                         <div className="min-w-0 flex-1">
@@ -97,7 +104,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                         <p className="tnum text-right font-serif text-xl">{tour.priceModel === "free_tip" ? l.tip : money(tour.priceCents, tour.currency)}
                           <span className="block font-sans text-xs font-normal text-text-muted">{tour.priceModel === "per_person" ? l.perPerson : tour.priceModel === "per_group" ? l.perGroup(tour.maxPeoplePerBooking) : l.tipSub}</span></p>
                       </div>
-                      <BookingForm slug={slug} tour={{ id: tour.id, maxPeople: tour.maxPeoplePerBooking }} departures={tour.deps} tz={tz} lang={lang} />
+                      <BookingForm slug={slug} tour={{ id: tour.id, maxPeople: tour.maxPeoplePerBooking, paid: tour.priceModel !== "free_tip" }} departures={tour.deps} tz={tz} lang={lang} />
                     </div>
                   </div>
                 </article>
@@ -145,7 +152,7 @@ export default async function PublicProfile({ params, searchParams }: { params: 
           <div className="overflow-hidden rounded-lg border border-border bg-bg shadow-pop">
             <div className="aspect-video">
               {video ? <iframe src={video} title={p.companyName} className="h-full w-full" allow="encrypted-media; picture-in-picture" allowFullScreen loading="lazy" />
-                : tours[0] ? <TourCover title={tours[0].title} time={firstTime(tours[0])} about={tours[0].description ?? ""} rounded={false} /> : null}
+                : tours[0] ? <Cover photo={photos.get(p.companyId)?.[1] ?? photos.get(tours[0].id)?.[0]} title={tours[0].title} time={firstTime(tours[0])} about={tours[0].description ?? ""} rounded={false} /> : null}
             </div>
             <div className="p-5">
               <p className="text-sm text-text-muted">{l.bookCard}</p>
@@ -171,6 +178,8 @@ export default async function PublicProfile({ params, searchParams }: { params: 
                 <li className="flex items-center gap-2"><Wallet aria-hidden size={16} />{l.noFee}</li>
                 <li className="flex items-center gap-2"><CalendarCheck aria-hidden size={16} />{l.instant}</li>
               </ul>
+              <AskForm slug={slug} lang={lang} label={l.sendMessage} />
+              {from !== null && <Link href={`/g/${slug}/regalo?lang=${lang}`} className="mt-4 flex items-center justify-center gap-2 rounded-md border border-border-input py-2.5 text-sm font-semibold hover:border-text"><Gift aria-hidden size={16} className="text-ch-strawberry" />{l.giveTour}</Link>}
             </div>
           </div>
         </aside>

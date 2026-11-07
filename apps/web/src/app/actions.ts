@@ -281,7 +281,7 @@ export async function deleteTourAction(f: FormData) {
 }
 
 export async function bookAction(_: FormState, f: FormData): Promise<FormState> {
-  const fields = fieldsOf(f, ["slug", "tourId", "startsAt", "people", "name", "email", "phone"]);
+  const fields = fieldsOf(f, ["slug", "tourId", "startsAt", "people", "name", "email", "phone", "gift"]);
   if (limited(`book:${await clientIp()}`, 10, 60 * 60_000)) return { error: TOO_MANY, fields };
   const email = LoginInput.safeParse({ email: fields.email });
   if (!fields.name.trim()) return { error: "Escribe tu nombre.", fields };
@@ -289,7 +289,7 @@ export async function bookAction(_: FormState, f: FormData): Promise<FormState> 
   let code: string;
   try {
     ({ code } = await marketplace.book({ slug: fields.slug, tourId: uuid.parse(fields.tourId), startsAt: fields.startsAt, people: Math.round(Number(fields.people) || 0),
-      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es" }));
+      name: fields.name.trim().slice(0, 120), email: email.data.email, phone: fields.phone.trim().slice(0, 32) || null, language: f.get("lang") === "en" ? "en" : "es", giftCode: fields.gift || null }));
   } catch (e) { return fail(e, fields); }
   redirect(`/g/${fields.slug}/reserva/${code}?lang=${f.get("lang") === "en" ? "en" : "es"}`);
 }

@@ -31,3 +31,13 @@ Platform earnings for Turno (subscriptions and commissions),finance,must,n/a,par
 Customer to sale to booking flow with time and price,marketplace,must,n/a,yes,public page → departure → booking with price → calendar → income
 "Team chat (Equipo): channels, direct messages, tour cards",team,must,n/a,partial,owner's ask; polling every 4 s; push notifications and files next
 "Calendar sync (Google, Apple, Outlook)",channels,must,n/a,yes,"private .ics per person; managers all tours, guides their own; revocable"
+Waitlist for full departures with notice when places free up,marketplace,should,n/a,yes,"first person whose group fits is emailed after any cancellation, from any platform"
+Overbooking alert across platforms,channels,must,n/a,yes,"Inicio warning, email to managers, stop selling the departure on Turno"
+Card tips by QR at the end of the tour,finance,should,n/a,partial,"QR and link in the guide app, added to the tour's tips; payment needs Stripe keys (Connect for direct payouts)"
+Photos for profile and tours,marketplace,must,n/a,yes,"resized in the browser, checked by content type; illustrated cover until uploaded"
+Traveller questions before booking with suggested replies,crm,should,n/a,yes,"private email thread; suggestions from tour data, or Claude with an Anthropic key"
+Gift cards,marketplace,should,n/a,partial,"sold from the public page, redeemed at booking; payment needs Stripe keys, or mark as paid in person"
+Demand-based price and timetable ideas,finance,should,n/a,yes,"last 8 weeks per weekly slot: raise price, add departure, launch price or drop slot"
+Suggested guide assignment and monthly guide pay,operations,should,yes,yes,"free and speaks the group's language, evenly spread; per tour + per person + tip share, CSV export"
+Weekly summary email,crm,should,n/a,yes,"Mondays via /api/cron/weekly; on by default, switch off in settings"
+Installable app with offline group list and push,platform,should,n/a,partial,"manifest, icons, service worker; push needs VAPID keys; native store apps later"

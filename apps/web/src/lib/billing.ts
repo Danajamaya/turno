@@ -4,6 +4,8 @@ import "server-only";
 import Stripe from "stripe";
 import { system } from "./db";
 import { appUrl } from "./email";
+import { activateGiftCard } from "./gifts";
+import { markTipPaid } from "./tips";
 import type { Session, Subscription } from "./types";
 import { RuleError } from "./types";
 
@@ -73,6 +75,8 @@ export async function handleWebhook(rawBody: string, signature: string | null): 
     switch (event.type) {
       case "checkout.session.completed": {
         const cs = event.data.object as Stripe.Checkout.Session;
+        if (cs.metadata?.kind === "tip" && cs.payment_status === "paid") { await markTipPaid(cs.metadata.tip_id, cs.id, tx); break; }
+        if (cs.metadata?.kind === "gift" && cs.payment_status === "paid") { await activateGiftCard(cs.metadata.gift_id, cs.id, tx); break; }
         if (cs.client_reference_id && typeof cs.customer === "string") {
           await tx`update companies set stripe_customer_id = ${cs.customer} where id = ${cs.client_reference_id}`;
         }

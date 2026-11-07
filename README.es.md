@@ -48,6 +48,11 @@ Un marketplace y CRM para guías turísticos, sobre la misma base (plan en
   verificadas, en español e inglés.
 - **Dinero:** ingresos por plataforma para el guía (`/ingresos`),
   suscripciones y comisiones para Turno (`/admin`).
+- **Crecer:** lista de espera para tours llenos, aviso de sobreventa entre
+  plataformas, propinas con tarjeta por QR, fotos, preguntas de viajeros con
+  respuestas sugeridas, tarjetas regalo, ideas de precio según la demanda,
+  reparto de guías y pagos del mes, resumen semanal por correo y app
+  instalable con avisos.
 
 Falta lo que necesita tus cuentas: verificación de Google para Gmail, Stripe
 Connect y precios, un número de WhatsApp Business, una clave de Anthropic

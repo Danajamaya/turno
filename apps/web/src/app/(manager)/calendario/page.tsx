@@ -5,7 +5,8 @@ import { closeBookingAction } from "@/app/actions";
 import { ChannelBadge } from "@/components/channel";
 import { WeekGrid } from "@/components/week-grid";
 import { PLATFORMS } from "@/lib/guides";
-import { Badge, Button, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
+import { Badge, Banner, Button, ButtonLink, Card, EmptyState, PageHeader } from "@/components/ui";
+import { autoAssignAction } from "@/app/growth-actions";
 import { dayLabel, hm, money, rangeLabel } from "@/lib/format";
 import { calendar } from "@/lib/guides";
 import { tourGroups } from "@/lib/guide-app";
@@ -19,7 +20,7 @@ const statusTone = { confirmed: "invited", cancelled: "denied", attended: "appro
 const statusName = { confirmed: "Confirmada", cancelled: "Cancelada", attended: "Asistió", no_show: "No vino" } as const;
 
 // G06 unified calendar: every booking from every channel, by day.
-export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ semana?: string }> }) {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ semana?: string; repartidos?: string }> }) {
   const s = await requireSession(["owner", "manager"]);
   const tz = s.location.timezone;
   const q = await searchParams;
@@ -37,9 +38,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
           <span className="tnum min-w-36 text-center text-sm font-semibold">{rangeLabel(days[0], days[6])}</span>
           <ButtonLink href={`/calendario?semana=${addLocalDays(week, 7)}`} variant="ghost" size="sm" aria-label="Semana siguiente"><ChevronRight aria-hidden size={18} /></ButtonLink>
         </div>
+        <form action={autoAssignAction}><Button variant="secondary">Asignar guías (7 días)</Button></form>
         <ButtonLink href="/calendario/sincronizar" variant="secondary">Sincronizar con mi calendario</ButtonLink>
         <ButtonLink href="/canales" variant="secondary">Conectar plataformas</ButtonLink>
       </PageHeader>
+      {q.repartidos !== undefined && <div className="mb-4"><Banner tone={q.repartidos === "0" ? "info" : "success"} role="status">{q.repartidos === "0" ? "No había tours sin guía, o nadie estaba libre. Revisa los idiomas y pagos en «Pagos a guías»." : `${q.repartidos} ${q.repartidos === "1" ? "tour asignado" : "tours asignados"}. Cada guía ya los ve en su app.`}</Banner></div>}
       <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2">
         <span className="tnum rounded-pill bg-accent-soft px-3 py-1 text-sm font-semibold text-accent">{live.length} reservas · {live.reduce((n, b) => n + b.people, 0)} personas</span>
         {PLATFORMS.map((p) => <ChannelBadge key={p} platform={p} />)}

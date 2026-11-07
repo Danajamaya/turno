@@ -5,6 +5,8 @@ import { requireSession } from "@/lib/session";
 import { subscriptionFor } from "@/lib/store";
 import { FREE_PLAN_PEOPLE } from "@/lib/types";
 import { DeleteAccountForm } from "./delete-account-form";
+import { summaryText, weekNumbers, weeklySummaryOn } from "@/lib/summary";
+import { weeklySummaryAction } from "@/app/growth-actions";
 
 export const metadata: Metadata = { title: "Configuración" };
 
@@ -15,7 +17,8 @@ const statusName = { trialing: "Prueba", active: "Activo", past_due: "Pago pendi
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ pago?: string }> }) {
   const s = await requireSession(["owner", "manager"]);
   const q = await searchParams;
-  const sub = await subscriptionFor(s);
+  const [sub, summaryOn, week] = await Promise.all([subscriptionFor(s), weeklySummaryOn(s.company.id), weekNumbers(s.company.id)]);
+  const preview = summaryText(week);
   const owner = s.member.role === "owner";
   return (
     <>
@@ -45,6 +48,14 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
               <Button variant="secondary">Administrar suscripción</Button>
             </form>
           ) : null}
+        </Card>
+        <Card>
+          <h2 className="mb-1 text-lg">Resumen semanal</h2>
+          <p className="mb-3 text-sm text-text-muted">Cada lunes por la mañana, la semana en números a tu correo: personas, ventas, propinas, tu mejor tour y las reseñas nuevas.</p>
+          <form action={weeklySummaryAction} className="mb-4"><input type="hidden" name="on" value={summaryOn ? "0" : "1"} />
+            <Button variant="secondary">{summaryOn ? "Dejar de recibirlo" : "Recibirlo cada lunes"}</Button></form>
+          <details className="text-sm"><summary className="cursor-pointer font-semibold text-accent">Ver cómo se vería hoy</summary>
+            <div className="mt-2 rounded-md bg-surface p-4"><p className="mb-2 font-semibold">{preview.subject}</p><pre className="whitespace-pre-wrap font-sans">{preview.text}</pre></div></details>
         </Card>
         <Card>
           <h2 className="mb-1 text-lg">Tu cuenta</h2>

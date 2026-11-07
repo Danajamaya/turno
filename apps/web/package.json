@@ -11,20 +11,25 @@
     "migrate": "node scripts/migrate.mjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "1.6.0",
     "@turno/core": "workspace:*",
     "lucide-react": "0.548.0",
     "next": "16.4.3",
     "postgres": "3.4.9",
+    "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "server-only": "0.0.1",
     "stripe": "23.0.0",
+    "web-push": "3.6.7",
     "zod": "4.6.7"
   },
   "devDependencies": {
     "@types/node": "22.19.0",
+    "@types/qrcode": "1.5.5",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
+    "@types/web-push": "3.6.4",
     "autoprefixer": "10.4.21",
     "postcss": "8.5.6",
     "tailwindcss": "3.4.19",

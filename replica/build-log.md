@@ -77,3 +77,23 @@ e2e/guides, e2e/chat, e2e/finish in Chromium.
 Verified: 20 core + 31 integration tests, `tsc`, `next build`, and e2e/slice,
 e2e/guides, e2e/chat, e2e/finish, e2e/crm in Chromium. e2e/chat now uses
 unique texts so it can run again on the same database.
+
+## Ten growth features (2026-11-07)
+
+| feature | status | missing | harder than expected |
+| --- | --- | --- | --- |
+| 1 waitlist | done | SMS notice | a group of 3 must not be told about 2 free places; first person whose group fits |
+| 2 overbooking alert | done | closing on the other platforms (no API) | closed departures also had to block Turno's own booking check, not just the list |
+| 3 card tips by QR | partial | Stripe keys; Connect for direct payouts | closing a tour overwrote card tips with the cash amount; tips are now re-split as cash + card |
+| 4 photos | done | cropping | trusting the browser's type label would let an SVG through; bytes are checked |
+| 5 traveller questions | done | WhatsApp channel | the reply link is rotated on every answer so old emails can't be replayed |
+| 6 gift cards | partial | Stripe keys | without payments a pending card was stored before the error; now checked first |
+| 7 demand ideas | done | seasonality | |
+| 8 guide assignment and pay | done | contracts, payslips | |
+| 9 weekly summary | done | WhatsApp delivery | two overlapping runs would both send; the company is claimed first |
+| 10 installable app and push | partial | VAPID keys; store apps | `next start` is production, so the tip page needed LINK_SECRET; without it the QR is hidden instead of the page failing |
+
+Verified: 25 core + 42 integration tests (11 new for these features),
+`tsc`, `next build`, e2e/slice, guides, finish, crm, chat and the new
+e2e/growth in Chromium, and an axe-core WCAG 2.1 AA audit of 96 page and
+width combinations (manager, guide and public) with no violations.

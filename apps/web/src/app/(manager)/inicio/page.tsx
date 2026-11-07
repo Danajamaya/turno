@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CalendarDays, CheckCircle2, Circle, Clock, Coins, HandCoins, MapPin, Ticket, Users } from "lucide-react";
+import { AlertTriangle, CalendarDays, Lightbulb, CheckCircle2, Circle, Clock, Coins, HandCoins, MapPin, Ticket, Users } from "lucide-react";
 import { addLocalDays, localDate, localRange, weekStartOf } from "@turno/core";
 import { BarList, StackedColumns } from "@/components/charts";
 import { DayTimeline } from "@/components/day-timeline";
@@ -10,6 +10,9 @@ import { ButtonLink, Card, EmptyState, Kpi } from "@/components/ui";
 import { dayLabel, hm, money, moneyWhole } from "@/lib/format";
 import { calendar, channels, guideIncome, platformName, recentBookings, reviewQueue, type CalendarBooking } from "@/lib/guides";
 import { listTours } from "@/lib/marketplace";
+import { overbookings } from "@/lib/waitlist";
+import { demandIdeas } from "@/lib/demand";
+import { closeDepartureAction } from "@/app/growth-actions";
 import { requireSession } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Inicio" };
@@ -39,14 +42,14 @@ export default async function HomePage() {
   const tz = s.location.timezone, cur = s.company.currency;
   const now = new Date(), today = localDate(now, tz), ym = today.slice(0, 7);
   const thisWeek = weekStartOf(today, s.location.weekStartDay), firstWeek = addLocalDays(thisWeek, -11 * 7);
-  const [todayList, upcoming, history, month, prev, chans, review, recent, tourList] = await Promise.all([
+  const [todayList, upcoming, history, month, prev, chans, review, recent, tourList, over, ideas] = await Promise.all([
     calendar(s, localRange(today, 1, tz).start, localRange(today, 1, tz).end),
     calendar(s, now, new Date(now.getTime() + 14 * 86_400_000)),
     calendar(s, localRange(firstWeek, 7 * 12, tz).start, localRange(firstWeek, 7 * 12, tz).end),
     guideIncome(s, firstOfMonth(ym), firstOfMonth(ym, 1)),
     // month to date against the same days of last month, not the whole month
     guideIncome(s, firstOfMonth(ym, -1), new Date(Math.min(firstOfMonth(ym).getTime(), firstOfMonth(ym, -1).getTime() + (now.getTime() - firstOfMonth(ym).getTime())))),
-    channels(s), reviewQueue(s), recentBookings(s), listTours(s),
+    channels(s), reviewQueue(s), recentBookings(s), listTours(s), overbookings(s, now, new Date(now.getTime() + 21 * 86_400_000)), demandIdeas(s),
   ]);
   const todays = groupTours(todayList);
   const next = groupTours(upcoming)[0];
@@ -78,6 +81,26 @@ export default async function HomePage() {
         </div>
         <ButtonLink href="/calendario" variant="secondary"><CalendarDays aria-hidden size={16} /> Ver la semana</ButtonLink>
       </div>
+
+      {over.length > 0 && (
+        <section className="rounded-lg border border-danger bg-danger-soft p-5" aria-labelledby="over-h">
+          <h2 id="over-h" className="flex items-center gap-2 text-lg text-danger"><AlertTriangle aria-hidden size={20} /> {over.length === 1 ? "Una salida tiene sobreventa" : `${over.length} salidas tienen sobreventa`}</h2>
+          <p className="mb-3 text-sm">Sumando todas tus plataformas, se vendieron más plazas de las que tiene el tour. Ciérrala en las plataformas que todavía la venden o súbele el cupo.</p>
+          <ul className="grid gap-2">
+            {over.map((o) => (
+              <li key={o.tourId + o.startsAt} className="flex flex-wrap items-center gap-3 rounded-md bg-bg px-4 py-3 text-sm">
+                <span className="min-w-0 flex-1"><b>{o.tourName}</b>, {dayLabel(localDate(new Date(o.startsAt), tz))} {hm(o.startsAt, tz)}
+                  <span className="block text-text-muted"><b className="tnum text-danger">{o.people} personas para {o.capacity} plazas</b>, de {o.platforms.map((x) => platformName[x] ?? x).join(", ")}</span></span>
+                <form action={closeDepartureAction}>
+                  <input type="hidden" name="tourId" value={o.tourId} /><input type="hidden" name="startsAt" value={o.startsAt} /><input type="hidden" name="closed" value={o.closed ? "0" : "1"} />
+                  <button className="rounded-md border border-border-input bg-bg px-3 py-2 font-semibold hover:border-text">{o.closed ? "Volver a vender en Turno" : "Dejar de vender en Turno"}</button>
+                </form>
+                <Link href={`/calendario?semana=${localDate(new Date(o.startsAt), tz)}`} className="font-semibold underline">Ver el grupo</Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <Card className="p-5 md:p-6">
         <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
@@ -156,6 +179,29 @@ export default async function HomePage() {
         </Card>
       </div>
 
+        {ideas.length > 0 && (
+          <Card className="mb-6 p-5">
+            <h2 className="flex items-center gap-2 text-lg"><Lightbulb aria-hidden size={20} className="text-gold-ink" /> Ideas para vender más</h2>
+            <p className="mb-3 text-sm text-text-muted">Según cómo se llenaron tus salidas las últimas 8 semanas, sumando todas las plataformas.</p>
+            <ul className="grid gap-3 md:grid-cols-3">
+              {ideas.slice(0, 3).map((a) => {
+                const when = `${["domingos", "lunes", "martes", "miércoles", "jueves", "viernes", "sábados"][a.weekday]} a las ${a.time}`;
+                const pct = `${Math.round(a.fill * 100)} %`;
+                const text = a.kind === "raise_price" ? `Se llena casi siempre (${pct} de media). Prueba a subirlo a ${money(a.suggestedPriceCents!, cur)}.`
+                  : a.kind === "add_departure" ? `Va al ${pct} de media. Añade otra salida ese día para no perder gente.`
+                  : a.kind === "launch_price" ? `Solo se llena al ${pct}. Prueba un precio de lanzamiento de ${money(a.suggestedPriceCents!, cur)}.`
+                  : `Solo se llena al ${pct}. Muévelo a otra hora o quítalo y junta a la gente en otra salida.`;
+                return (
+                  <li key={a.tourId + a.weekday + a.time} className="rounded-md bg-surface p-4 text-sm">
+                    <b className="block">{a.tourName}</b><span className="text-text-muted">{when}</span>
+                    <p className="mt-2">{text}</p>
+                    <Link href={`/perfil?editar=${a.tourId}`} className="mt-2 inline-block font-semibold text-accent underline">Cambiar el tour</Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </Card>
+        )}
         <Card className="p-5">
           <h2 className="text-lg">Para tenerlo todo al día</h2>
           <p className="mb-3 text-sm text-text-muted">Lo que falta para que Turno trabaje solo</p>

@@ -134,3 +134,10 @@ export function TourCover({ title, time, about = "", className = "", rounded = t
     </svg>
   );
 }
+
+/** A tour's first uploaded photo when there is one, the illustrated postcard otherwise. */
+export function Cover({ photo, alt = "", rounded = true, className = "", ...rest }: { photo?: string | null; alt?: string; title: string; time?: string | null; about?: string; rounded?: boolean; className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  if (photo) return <img src={`/api/media/${photo}`} alt={alt} loading="lazy" className={`block h-full w-full object-cover ${rounded ? "rounded-lg" : ""} ${className}`} />;
+  return <TourCover {...rest} rounded={rounded} className={className} />;
+}

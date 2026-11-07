@@ -3,6 +3,7 @@
 // db/migrations/0003_team_chat.sql decide visibility, not only this code.
 import "server-only";
 import { system, withUser } from "./db";
+import { notifyMembers } from "./push";
 import type { Session } from "./types";
 import { RuleError } from "./types";
 
@@ -102,7 +103,7 @@ export async function send(s: Session, channelId: string, body: string, attachme
   const text = body.trim();
   if (!text) throw new RuleError("empty", "Escribe un mensaje.");
   if (text.length > 4000) throw new RuleError("too_long", "El mensaje es demasiado largo.");
-  return withUser(s.userId, async (tx) => {
+  const sent = await withUser(s.userId, async (tx) => {
     const [visible] = await tx`select 1 from chat_channels where id = ${channelId}`;
     if (!visible) throw new RuleError("not_found", "Ese chat no existe o no puedes verlo.");
     const [m] = await tx<ChatMessage[]>`
@@ -111,8 +112,12 @@ export async function send(s: Session, channelId: string, body: string, attachme
       returning id, channel_id, member_id, body, attachment, created_at`;
     await tx`insert into chat_members (channel_id, member_id, company_id, last_read_at) values (${channelId}, ${s.member.id}, ${s.company.id}, now())
              on conflict (channel_id, member_id) do update set last_read_at = now()`;
-    return { ...m, authorName: s.member.fullName, authorColour: s.member.colour };
+    const others = await tx<{ memberId: string }[]>`select member_id from chat_members where channel_id = ${channelId} and in_direct and member_id <> ${s.member.id}`;
+    return { message: { ...m, authorName: s.member.fullName, authorColour: s.member.colour }, others: others.map((o) => o.memberId) };
   });
+  // direct messages buzz the other person's phone; team channels don't, to keep it calm
+  if (sent.others.length) await notifyMembers(s.company.id, { memberIds: sent.others }, { title: s.member.fullName, body: text.slice(0, 140), url: `/equipo?c=${channelId}` }).catch(() => 0);
+  return sent.message;
 }
 
 export async function teammates(s: Session) {

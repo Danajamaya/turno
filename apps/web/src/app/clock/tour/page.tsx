@@ -6,7 +6,11 @@ import { checkInAction } from "@/app/actions";
 import { ChannelBadge } from "@/components/channel";
 import { Card } from "@/components/ui";
 import { hm } from "@/lib/format";
+import QRCode from "qrcode";
 import { myTours } from "@/lib/guide-app";
+import { cardTipsCents, tipLink } from "@/lib/tips";
+import { canSign } from "@/lib/sign";
+import { money } from "@/lib/format";
 import { requireSession } from "@/lib/session";
 import { CloseTourForm } from "./close-form";
 
@@ -23,7 +27,10 @@ export default async function TourPage({ searchParams }: { searchParams: Promise
   const tour = tours.find((t) => t.key === k) ?? tours[0];
   if (!tour) return <main className="mx-auto max-w-md px-4 py-6"><Link href="/clock" className="text-sm text-accent underline">← Mi día</Link><p className="mt-6 text-text-muted">Hoy no tienes tours asignados.</p></main>;
   const came = tour.attendees.filter((a) => a.status === "attended").reduce((n, a) => n + a.people, 0);
-  const closed = tour.tipsCents > 0; // checking everyone in is not closing: closing records the tips
+  const card = await cardTipsCents(s.company.id, tour.startsAt, tour.tourName);
+  const closed = tour.tipsCents - card > 0; // closing records the cash tips; card tips add up on their own
+  const tipUrl = canSign() ? await tipLink(s, tour.key) : null;
+  const qr = tipUrl ? await QRCode.toString(tipUrl, { type: "svg", margin: 1, color: { dark: "#14224a", light: "#ffffff" } }) : null;
   return (
     <main className="mx-auto grid max-w-md gap-4 px-4 py-6">
       <Link href="/clock" className="text-sm text-accent underline">← Mi día</Link>
@@ -51,7 +58,17 @@ export default async function TourPage({ searchParams }: { searchParams: Promise
           ))}
         </ul>
       </Card>
-      <CloseTourForm tourKey={tour.key} closed={closed} tips={tour.tipsCents} currency={s.company.currency} />
+      {qr && <Card className="p-4">
+        <h2 className="text-lg">Propinas con tarjeta</h2>
+        <p className="text-sm text-text-muted">Enseña este código al despedirte: pagan con el móvil y se suma solo a las propinas del tour.</p>
+        <div className="mx-auto my-4 w-56 rounded-md bg-bg p-2" role="img" aria-label="Código QR para dejar propina" dangerouslySetInnerHTML={{ __html: qr }} />
+        <p className="tnum text-center text-sm">Recibido por tarjeta: <b>{money(card, s.company.currency)}</b></p>
+        <p className="mt-2 flex flex-wrap justify-center gap-4 text-sm">
+          <a href={tipUrl!} className="font-semibold text-accent underline">Abrir el enlace de propina</a>
+          <a href={`https://wa.me/?text=${encodeURIComponent(`¡Gracias por venir! Si quieres dejar propina: ${tipUrl}`)}`} className="font-semibold text-accent underline">Mandarlo por WhatsApp</a>
+        </p>
+      </Card>}
+      <CloseTourForm tourKey={tour.key} closed={closed} tips={tour.tipsCents - card} currency={s.company.currency} />
       {tours.length > 1 && <p className="text-sm text-text-muted">Otros tours de hoy: {tours.filter((t) => t.key !== tour.key).map((t) => <Link key={t.key} href={`/clock/tour?k=${encodeURIComponent(t.key)}`} className="mr-3 text-accent underline">{hm(t.startsAt, tz)} {t.tourName}</Link>)}</p>}
     </main>
   );

@@ -31,12 +31,12 @@ export function DayTimeline({ tours, nowHours, label }: { tours: TimelineTour[];
         <ul>
           {placed.map((t, i) => {
             const main = t.byPlatform[0]?.[0] ?? "other", c = `var(--color-${channelColour(main)})`;
-            const full = t.capacity ? Math.min(1, t.people / t.capacity) : null;
+            const full = t.capacity ? Math.min(1, t.people / t.capacity) : null, over = t.capacity !== null && t.people > t.capacity;
             return (
               <li key={t.key} className="anim-grow-x absolute" style={{ left: `${pos(t.start)}%`, width: `max(${(t.durationMin / 60 / span) * 100}%, 132px)`, top: t.lane * (laneH + 8), height: laneH, animationDelay: `${120 + i * 90}ms` }}>
-                <Link href={t.href} className="flex h-full flex-col justify-between overflow-hidden rounded-md border-l-4 px-3 py-2 text-sm shadow-card transition-transform duration-fast hover:-translate-y-0.5"
+                <Link href={t.href} className={`flex h-full flex-col justify-between overflow-hidden rounded-md border-l-4 px-3 py-2 text-sm shadow-card transition-transform duration-fast hover:-translate-y-0.5 ${over ? "ring-2 ring-danger" : ""}`}
                   style={{ borderColor: c, background: `color-mix(in srgb, ${c} 14%, var(--color-bg))` }}>
-                  <span className="flex items-baseline justify-between gap-2"><b className="tnum">{t.time}</b><span className="tnum font-semibold">{t.people}{t.capacity ? <span className="font-normal text-text-muted">/{t.capacity}</span> : null}</span></span>
+                  <span className="flex items-baseline justify-between gap-2"><b className="tnum">{t.time}</b><span className={`tnum font-semibold ${over ? "text-danger" : ""}`}>{over && <span className="sr-only">Sobreventa: </span>}{t.people}{t.capacity ? <span className={over ? "" : "font-normal text-text-muted"}>/{t.capacity}</span> : null}</span></span>
                   <span className="truncate font-semibold">{t.tourName}</span>
                   <span className="flex h-1.5 gap-0.5 overflow-hidden rounded-pill bg-bg" role="img" aria-label={t.byPlatform.map(([k, v]) => `${platformName[k] ?? k} ${v}`).join(", ") + (full !== null ? `, ${Math.round(full * 100)} %` : "")}>
                     {t.byPlatform.map(([k, v]) => <span key={k} style={{ flex: v, background: `var(--color-${channelColour(k)})` }} />)}

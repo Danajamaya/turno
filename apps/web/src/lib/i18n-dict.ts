@@ -20,7 +20,7 @@ const dict = {
     where: "Dónde", whereHint: "¿A qué ciudad vas?", whenHint: "Cualquier día", all: "Todo", toursIn: (c: string) => `Tours en ${c}`, toursAll: "Tours con guías locales",
     meetGuides: "Conoce a los guías", byGuide: (c: string, city: string) => city ? `Con ${c}, en ${city}` : `Con ${c}`, save: (t: string) => `Guardar ${t}`,
     trial: "Tour de prueba", startsAt: (h: string) => `Sale a las ${h}`, langs: (l: string[]) => l.join(", "), heroLine: "Recorre la ciudad con quien la vive",
-    bookCard: "Reserva tu tour", seeTimes: "Ver horarios", nextDeps: "Próximas salidas", noFee: "Sin pagar por adelantado", instant: "Confirmación al momento", more: (n: number) => `${n} fechas más`,
+    bookCard: "Reserva tu tour", seeTimes: "Ver horarios", nextDeps: "Próximas salidas", noFee: "Sin pagar por adelantado", instant: "Confirmación al momento", more: (n: number) => `${n} fechas más`, waitTitle: "Esta salida está completa.", waitSub: "Apúntate y te escribimos si se libera una plaza.", waitJoin: "Avísame", giftCode: "Código regalo (opcional)", giveTour: "Regalar un tour", giftHelp: "Si te regalaron este tour", giftPaid: (m: string) => `Pagado con tarjeta regalo: ${m}`, giftRest: (m: string) => `Pagas en el punto de encuentro: ${m}`,
     verifiedOnly: "Solo opinan viajeros que reservaron", outOf: "de 5", guideSince: "Guías verificados por Turno", sendMessage: "Escribir al guía",
   },
   en: {
@@ -41,7 +41,7 @@ const dict = {
     where: "Where", whereHint: "Which city?", whenHint: "Any day", all: "All", toursIn: (c: string) => `Tours in ${c}`, toursAll: "Tours with local guides",
     meetGuides: "Meet the guides", byGuide: (c: string, city: string) => city ? `With ${c}, in ${city}` : `With ${c}`, save: (t: string) => `Save ${t}`,
     trial: "Trial tour", startsAt: (h: string) => `Starts at ${h}`, langs: (l: string[]) => l.join(", "), heroLine: "See the city with someone who lives it",
-    bookCard: "Book your tour", seeTimes: "See times", nextDeps: "Next departures", noFee: "Nothing to pay in advance", instant: "Instant confirmation", more: (n: number) => `${n} more dates`,
+    bookCard: "Book your tour", seeTimes: "See times", nextDeps: "Next departures", noFee: "Nothing to pay in advance", instant: "Instant confirmation", more: (n: number) => `${n} more dates`, waitTitle: "This departure is full.", waitSub: "Join the list and we will email you if a place opens up.", waitJoin: "Tell me", giftCode: "Gift code (optional)", giveTour: "Give a tour as a gift", giftHelp: "If this tour was a present", giftPaid: (m: string) => `Paid with gift card: ${m}`, giftRest: (m: string) => `Pay at the meeting point: ${m}`,
     verifiedOnly: "Only travellers who booked can review", outOf: "out of 5", guideSince: "Guides verified by Turno", sendMessage: "Message the guide",
   },
 } as const;

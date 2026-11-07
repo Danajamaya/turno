@@ -3,7 +3,8 @@ import Link from "next/link";
 import { Clock, Compass, Globe, Landmark, Palette, Search, Star, Users, UtensilsCrossed } from "lucide-react";
 import { PublicHeader } from "@/components/public-header";
 import { SaveHeart } from "@/components/save-heart";
-import { TourCover } from "@/components/postcard";
+import { Cover } from "@/components/postcard";
+import { photosFor } from "@/lib/media";
 import { money } from "@/lib/format";
 import { localeOf, pickLang, t } from "@/lib/i18n";
 import { search, searchFacets, searchTours } from "@/lib/marketplace";
@@ -26,6 +27,7 @@ export default async function GuideSearch({ searchParams }: { searchParams: Prom
   const q = await searchParams;
   const lang = await pickLang(q.lang), l = t(lang), loc = localeOf(lang);
   const [tours, guides, facets] = await Promise.all([searchTours(q), search(q), searchFacets()]);
+  const photos = await photosFor([...tours.map((x) => x.tourId), ...guides.map((x) => x.companyId)]);
   const params = { city: q.city, language: q.language, interest: q.interest, date: q.date };
   const withInterest = (x?: string) => `/guias?${new URLSearchParams(Object.entries({ ...params, interest: x, lang }).filter(([, v]) => v) as [string, string][])}`;
   const field = "block w-full border-0 bg-transparent p-0 text-sm text-text placeholder:text-text-muted focus:outline-none";
@@ -96,7 +98,7 @@ export default async function GuideSearch({ searchParams }: { searchParams: Prom
               <li key={tr.tourId} className="relative">
                 <Link href={`/g/${tr.slug}?lang=${lang}#tour-${tr.tourId}`} className="group block rounded-lg">
                   <div className="relative aspect-[4/3] overflow-hidden rounded-lg">
-                    <TourCover title={tr.title} time={tr.firstTime} about={tr.description ?? ""} className="transition-transform duration-base ease-brand group-hover:scale-[1.03]" />
+                    <Cover photo={photos.get(tr.tourId)?.[0]} title={tr.title} time={tr.firstTime} about={tr.description ?? ""} className="transition-transform duration-base ease-brand group-hover:scale-[1.03]" />
                     {(tr.priceModel === "free_tip" || tr.durationMin <= 60) && (
                       <span className="absolute left-3 top-3 rounded-pill bg-bg px-3 py-1 text-xs font-semibold shadow-card">{tr.priceModel === "free_tip" ? l.tip : l.trial}</span>
                     )}
@@ -130,7 +132,10 @@ export default async function GuideSearch({ searchParams }: { searchParams: Prom
               {guides.map((g) => (
                 <li key={g.slug}>
                   <Link href={`/g/${g.slug}?lang=${lang}`} className="flex h-full items-center gap-4 rounded-lg border border-border p-4 transition-shadow duration-base hover:shadow-pop">
-                    <span className="grid h-16 w-16 shrink-0 place-items-center rounded-pill bg-gradient-to-br from-gold to-ch-strawberry font-serif text-lg font-bold text-on-side">{g.companyName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</span>
+                    {photos.get(g.companyId)?.[0]
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={`/api/media/${photos.get(g.companyId)![0]}`} alt="" className="h-16 w-16 shrink-0 rounded-pill object-cover" />
+                      : <span className="grid h-16 w-16 shrink-0 place-items-center rounded-pill bg-gradient-to-br from-gold to-ch-strawberry font-serif text-lg font-bold text-on-side">{g.companyName.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</span>}
                     <span className="min-w-0">
                       <b className="block truncate">{g.companyName}</b>
                       <span className="line-clamp-2 text-sm text-text-muted">{g.headline}</span>
